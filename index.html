@@ -12,6 +12,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Chart.js DataLabels Plugin CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
     <!-- SheetJS (xlsx reader) CDN -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <!-- FontAwesome CDN -->
@@ -661,6 +663,9 @@
         const pageSize = 10;
 
         window.onload = function () {
+            if (typeof ChartDataLabels !== 'undefined') {
+                Chart.register(ChartDataLabels);
+            }
             setupEventListeners();
             fetchGoogleSheetData();
         };
@@ -1087,8 +1092,18 @@
                     indexAxis: 'y',
                     responsive: true,
                     maintainAspectRatio: false,
+                    layout: {
+                        padding: { right: 55 }
+                    },
                     plugins: {
                         legend: { display: false },
+                        datalabels: {
+                            anchor: 'end',
+                            align: 'end',
+                            color: '#334155',
+                            font: { family: 'Prompt', size: 10, weight: 'bold' },
+                            formatter: (val) => val > 0 ? `${val} เบอร์` : '0'
+                        },
                         tooltip: {
                             callbacks: {
                                 label: function(context) {
@@ -1152,8 +1167,18 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    layout: {
+                        padding: { top: 25 }
+                    },
                     plugins: {
                         legend: { display: false },
+                        datalabels: {
+                            anchor: 'end',
+                            align: 'end',
+                            color: '#15803d',
+                            font: { family: 'Prompt', size: 9, weight: 'bold' },
+                            formatter: (val) => val > 0 ? `฿${val.toLocaleString('th-TH', {maximumFractionDigits: 0})}` : ''
+                        },
                         tooltip: {
                             callbacks: {
                                 label: (ctx) => ` รวม Pre-VAT: ฿${ctx.raw.toLocaleString('th-TH', {minimumFractionDigits: 2})}`
@@ -1328,6 +1353,16 @@
                     maintainAspectRatio: false,
                     plugins: {
                         legend: { position: 'bottom', labels: { color: '#475569', font: { family: 'Prompt', size: 11 } } },
+                        datalabels: {
+                            color: '#ffffff',
+                            font: { family: 'Prompt', size: 10, weight: 'bold' },
+                            formatter: (val, ctx) => {
+                                if (!val || val === 0) return '';
+                                const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                                const pct = total > 0 ? ((val / total) * 100).toFixed(1) : 0;
+                                return `฿${val.toLocaleString('th-TH', {maximumFractionDigits: 0})}\n(${pct}%)`;
+                            }
+                        },
                         tooltip: {
                             callbacks: {
                                 label: (ctx) => ` ${ctx.label}: ฿${ctx.raw.toLocaleString('th-TH', {minimumFractionDigits: 2})}`
@@ -1376,8 +1411,18 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    layout: {
+                        padding: { top: 25 }
+                    },
                     plugins: {
                         legend: { display: false },
+                        datalabels: {
+                            anchor: 'end',
+                            align: 'end',
+                            color: '#475569',
+                            font: { family: 'Prompt', size: 9, weight: 'bold' },
+                            formatter: (val) => val > 0 ? `฿${val.toLocaleString('th-TH', {maximumFractionDigits: 0})}` : ''
+                        },
                         tooltip: {
                             callbacks: {
                                 label: (ctx) => ` ${ctx.dataset.label}: ฿${ctx.raw.toLocaleString('th-TH', {minimumFractionDigits: 2})}`
