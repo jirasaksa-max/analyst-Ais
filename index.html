@@ -1,0 +1,1074 @@
+<!DOCTYPE html>
+<html lang="th" class="h-full bg-slate-50 text-slate-800">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AIS Telecom Expense Analytics Dashboard (Bright Mode 16:9)</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter & Prompt -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- SheetJS (xlsx reader) CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- FontAwesome CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Prompt', 'Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        ais: {
+                            green: '#70B22C',
+                            darkGreen: '#589120',
+                            lightGreen: '#8DC63F',
+                            bg: '#F8FAFC',
+                            card: '#FFFFFF',
+                            border: '#E2E8F0'
+                        }
+                    },
+                    aspectRatio: {
+                        '16/9': '16 / 9',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom scrollbar styling for light mode */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        
+        /* Tier Badges Light Mode Palette */
+        .tier-badge-0 { background-color: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; }
+        .tier-badge-under100 { background-color: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd; }
+        .tier-badge-100-300 { background-color: #ccfbf1; color: #0d9488; border: 1px solid #99f6e4; }
+        .tier-badge-300-500 { background-color: #ecfccb; color: #65a30d; border: 1px solid #d9f99d; }
+        .tier-badge-500-800 { background-color: #fef9c3; color: #ca8a04; border: 1px solid #fef08a; }
+        .tier-badge-800-1000 { background-color: #ffedd5; color: #ea580c; border: 1px solid #fed7aa; }
+        .tier-badge-1000plus { background-color: #ffe4e6; color: #e11d48; border: 1px solid #fecdd3; }
+        
+        .glow-card {
+            box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05), 0 2px 6px -1px rgba(0, 0, 0, 0.02);
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen p-4 md:p-6 overflow-x-hidden">
+    
+    <!-- Main 16:9 Dashboard Container -->
+    <div id="mainContainer" class="max-w-[1920px] mx-auto flex flex-col gap-5">
+        
+        <!-- Header & Sync Control Bar -->
+        <header class="flex flex-col lg:flex-row lg:items-center lg:justify-between bg-white border border-slate-200 p-4 rounded-2xl shadow-sm gap-4">
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-ais-green to-emerald-600 flex items-center justify-center text-white font-black text-xl shadow-lg shadow-ais-green/30">
+                    <i class="fa-solid fa-signal text-xl"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h1 class="text-xl font-bold text-slate-900 tracking-tight">AIS Telecom Expense Analytics</h1>
+                        <span class="bg-emerald-50 text-emerald-700 text-xs px-2.5 py-0.5 rounded-full font-semibold border border-emerald-200">
+                            <i class="fa-solid fa-circle-dot text-[10px] text-emerald-500 mr-1 animate-pulse"></i>Live Google Sheets
+                        </span>
+                    </div>
+                    <p class="text-xs text-slate-500 mt-0.5">รายงานสรุปค่าใช้บริการโทรศัพท์ ก่อนภาษีมูลค่าเพิ่ม (Pre-VAT Analysis Dashboard - Light Theme)</p>
+                </div>
+            </div>
+
+            <!-- Action Controls & Live Status -->
+            <div class="flex flex-wrap items-center gap-3">
+                <!-- Sync Status Badge -->
+                <div id="syncStatusBadge" class="flex items-center gap-2 text-xs bg-slate-100 px-3 py-2 rounded-xl border border-slate-200 text-slate-600">
+                    <span id="syncDot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span id="syncText">ดึงข้อมูลสำเร็จ (Google Sheet: analyst)</span>
+                    <span id="lastUpdatedTime" class="text-[10px] text-slate-400 border-l border-slate-300 pl-2"></span>
+                </div>
+
+                <!-- Google Sheet Refresh Button -->
+                <button id="refreshBtn" onclick="fetchGoogleSheetData()" class="bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold px-4 py-2.5 rounded-xl transition duration-200 flex items-center gap-2 shadow-sm">
+                    <i id="refreshIcon" class="fa-solid fa-rotate text-emerald-400 text-sm"></i>
+                    <span>รีเฟรชข้อมูล Sheet</span>
+                </button>
+
+                <!-- Excel File Upload Button (Fallback) -->
+                <label class="cursor-pointer bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold px-4 py-2.5 rounded-xl border border-slate-300 transition duration-200 flex items-center gap-2 shadow-sm">
+                    <i class="fa-solid fa-file-excel text-emerald-600 text-sm"></i>
+                    <span>นำเข้าไฟล์ Excel</span>
+                    <input type="file" id="excelFileInput" accept=".xlsx, .xls, .csv" class="hidden" />
+                </label>
+
+                <!-- Export CSV Button -->
+                <button onclick="exportSummaryCSV()" class="bg-ais-green hover:bg-ais-darkGreen text-white text-xs font-bold px-4 py-2.5 rounded-xl transition duration-200 flex items-center gap-2 shadow-md shadow-ais-green/20">
+                    <i class="fa-solid fa-download text-sm"></i>
+                    <span>ส่งออก CSV</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Executive Key Metrics (5 Columns) -->
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <!-- Metric 1 -->
+            <div class="bg-white border border-slate-200/80 rounded-2xl p-4 flex flex-col justify-between shadow-sm relative overflow-hidden group">
+                <div class="absolute -right-3 -bottom-3 text-slate-100 text-6xl group-hover:scale-110 transition-transform">
+                    <i class="fa-solid fa-phone"></i>
+                </div>
+                <span class="text-xs text-slate-500 font-medium">จำนวนเบอร์ทั้งหมด</span>
+                <div class="mt-2 flex items-baseline gap-2">
+                    <span id="statTotalCount" class="text-2xl lg:text-3xl font-extrabold text-slate-900">0</span>
+                    <span class="text-xs text-slate-500">เบอร์</span>
+                </div>
+                <div class="text-[11px] text-emerald-600 mt-1 font-medium flex items-center gap-1">
+                    <i class="fa-solid fa-circle-check"></i>
+                    <span id="statActiveCount">0 เบอร์มีค่าบริการ</span>
+                </div>
+            </div>
+
+            <!-- Metric 2 -->
+            <div class="bg-white border border-slate-200/80 rounded-2xl p-4 flex flex-col justify-between shadow-sm relative overflow-hidden group">
+                <div class="absolute -right-3 -bottom-3 text-slate-100 text-6xl group-hover:scale-110 transition-transform">
+                    <i class="fa-solid fa-baht-sign"></i>
+                </div>
+                <span class="text-xs text-slate-500 font-medium">รวมก่อนภาษี (Pre-VAT)</span>
+                <div class="mt-2 flex items-baseline gap-1">
+                    <span id="statPreVatTotal" class="text-2xl lg:text-3xl font-extrabold text-ais-darkGreen">฿0</span>
+                </div>
+                <div class="text-[11px] text-slate-500 mt-1">
+                    เฉลี่ย <span id="statAvgPreVat" class="text-slate-800 font-bold">฿0</span> / เบอร์
+                </div>
+            </div>
+
+            <!-- Metric 3 -->
+            <div class="bg-white border border-slate-200/80 rounded-2xl p-4 flex flex-col justify-between shadow-sm relative overflow-hidden group">
+                <div class="absolute -right-3 -bottom-3 text-slate-100 text-6xl group-hover:scale-110 transition-transform">
+                    <i class="fa-solid fa-percent"></i>
+                </div>
+                <span class="text-xs text-slate-500 font-medium">ภาษีมูลค่าเพิ่ม (VAT 7%)</span>
+                <div class="mt-2 flex items-baseline gap-1">
+                    <span id="statVatTotal" class="text-2xl lg:text-3xl font-extrabold text-sky-600">฿0</span>
+                </div>
+                <div class="text-[11px] text-slate-500 mt-1">
+                    คำนวณจากยอด Pre-VAT
+                </div>
+            </div>
+
+            <!-- Metric 4 -->
+            <div class="bg-white border border-slate-200/80 rounded-2xl p-4 flex flex-col justify-between shadow-sm relative overflow-hidden group">
+                <div class="absolute -right-3 -bottom-3 text-slate-100 text-6xl group-hover:scale-110 transition-transform">
+                    <i class="fa-solid fa-wallet"></i>
+                </div>
+                <span class="text-xs text-slate-500 font-medium">รวมสุทธิหลังภาษี (Post-VAT)</span>
+                <div class="mt-2 flex items-baseline gap-1">
+                    <span id="statGrandTotal" class="text-2xl lg:text-3xl font-extrabold text-indigo-600">฿0</span>
+                </div>
+                <div class="text-[11px] text-slate-500 mt-1">
+                    ยอดชำระสุทธิ
+                </div>
+            </div>
+
+            <!-- Metric 5 -->
+            <div class="col-span-2 md:col-span-1 bg-white border border-slate-200/80 rounded-2xl p-4 flex flex-col justify-between shadow-sm relative overflow-hidden group">
+                <div class="absolute -right-3 -bottom-3 text-slate-100 text-6xl group-hover:scale-110 transition-transform">
+                    <i class="fa-solid fa-building"></i>
+                </div>
+                <span class="text-xs text-slate-500 font-medium">หน่วยงานสูงสุด</span>
+                <div class="mt-2">
+                    <span id="statTopDept" class="text-base font-bold text-slate-900 truncate block">-</span>
+                </div>
+                <div class="text-[11px] text-amber-600 font-medium mt-1">
+                    ยอดรวม <span id="statTopDeptAmount" class="font-bold">฿0</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tier Summary Cards (7 Tiers Required) -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3" id="tierCardsContainer">
+            <!-- Dynamic Tier Cards Populated via JS -->
+        </div>
+
+        <!-- Charts Area (16:9 Mid Grid) -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+            
+            <!-- Doughnut Chart: Tier Proportion (5 cols) -->
+            <div class="lg:col-span-5 bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm flex flex-col justify-between min-h-[380px]">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-chart-pie text-ais-green"></i>
+                        <h2 class="text-base font-bold text-slate-900">สัดส่วนเบอร์ตามระดับค่าบริการ (7 Tiers)</h2>
+                    </div>
+                    <span class="text-xs text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200">Pre-VAT</span>
+                </div>
+                <div class="relative flex-1 flex items-center justify-center py-2">
+                    <canvas id="tierDoughnutChart" class="max-h-[280px]"></canvas>
+                </div>
+                <p class="text-[11px] text-slate-400 text-center mt-2">คลิกส่วนของกราฟเพื่อกรองตารางตามระดับราคา</p>
+            </div>
+
+            <!-- Bar Chart: Department Spend Breakdown (7 cols) -->
+            <div class="lg:col-span-7 bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm flex flex-col justify-between min-h-[380px]">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-chart-column text-sky-600"></i>
+                        <h2 class="text-base font-bold text-slate-900">ยอดค่าบริการรวมแยกตามหน่วยงาน (Pre-VAT)</h2>
+                    </div>
+                    <span class="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">บาท</span>
+                </div>
+                <div class="relative flex-1 flex items-center justify-center py-2">
+                    <canvas id="deptBarChart" class="max-h-[280px]"></canvas>
+                </div>
+                <div class="flex items-center justify-between text-[11px] text-slate-500 mt-2 px-1">
+                    <span>* เรียงตามหน่วยงานที่มียอดใช้บริการสูงสุด</span>
+                    <span id="deptCountLabel" class="font-medium text-slate-700">0 หน่วยงาน</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detailed Data Table Section with Filters -->
+        <div class="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm flex flex-col gap-4">
+            
+            <!-- Filter Toolbar Bar -->
+            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 pb-2 border-b border-slate-100">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-700">
+                        <i class="fa-solid fa-filter text-ais-green"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-base font-bold text-slate-900">รายการเบอร์โทรศัพท์และหน่วยงาน</h2>
+                        <p class="text-xs text-slate-500">กรองข้อมูลตามเดือน, หน่วยงาน, ระดับราคา หรือคำค้นหา</p>
+                    </div>
+                </div>
+
+                <!-- Filters Control Controls -->
+                <div class="flex flex-wrap items-center gap-3">
+                    
+                    <!-- Month Filter -->
+                    <div class="flex items-center gap-1.5 bg-slate-50 border border-slate-300 rounded-xl px-2.5 py-1.5">
+                        <i class="fa-regular fa-calendar-days text-slate-400 text-xs"></i>
+                        <select id="monthFilterSelect" class="bg-transparent text-xs text-slate-700 font-semibold focus:outline-none">
+                            <option value="ALL">-- ทุกเดือน / งวด --</option>
+                        </select>
+                    </div>
+
+                    <!-- Department Filter -->
+                    <div class="flex items-center gap-1.5 bg-slate-50 border border-slate-300 rounded-xl px-2.5 py-1.5">
+                        <i class="fa-solid fa-sitemap text-slate-400 text-xs"></i>
+                        <select id="deptFilterSelect" class="bg-transparent text-xs text-slate-700 font-semibold focus:outline-none">
+                            <option value="ALL">-- ทุกหน่วยงาน --</option>
+                        </select>
+                    </div>
+
+                    <!-- Tier Filter Select -->
+                    <div class="flex items-center gap-1.5 bg-slate-50 border border-slate-300 rounded-xl px-2.5 py-1.5">
+                        <i class="fa-solid fa-layer-group text-slate-400 text-xs"></i>
+                        <select id="tierFilterSelect" class="bg-transparent text-xs text-slate-700 font-semibold focus:outline-none">
+                            <option value="ALL">-- ทุกระดับค่าบริการ --</option>
+                            <option value="1000plus">1,000 บาท ขึ้นไป</option>
+                            <option value="800-1000">800 - 1,000 บาท</option>
+                            <option value="500-800">500 - 800 บาท</option>
+                            <option value="300-500">300 - 500 บาท</option>
+                            <option value="100-300">300 - 100 บาท</option>
+                            <option value="under100">ต่ำกว่า 100 บาท</option>
+                            <option value="0">0 บาท (ไม่มีการใช้งาน)</option>
+                        </select>
+                    </div>
+
+                    <!-- Search Input -->
+                    <div class="relative min-w-[200px]">
+                        <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                        <input type="text" id="searchInput" placeholder="ค้นหาเบอร์, ชื่อ, แผนก..." 
+                            class="w-full bg-slate-50 border border-slate-300 text-xs text-slate-800 pl-8 pr-3 py-2 rounded-xl focus:outline-none focus:border-ais-green transition">
+                    </div>
+
+                    <!-- Reset Filter Button -->
+                    <button onclick="resetFilters()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs px-3 py-2 rounded-xl border border-slate-300 transition flex items-center gap-1">
+                        <i class="fa-solid fa-rotate-left"></i> รีเซ็ต
+                    </button>
+                </div>
+            </div>
+
+            <!-- Table -->
+            <div class="overflow-x-auto rounded-xl border border-slate-200">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-100/90 text-slate-600 text-xs border-b border-slate-200 font-semibold">
+                            <th class="py-3 px-4">#</th>
+                            <th class="py-3 px-4">งวด / เดือน</th>
+                            <th class="py-3 px-4">เบอร์โทรศัพท์ (AIS)</th>
+                            <th class="py-3 px-4">ชื่อ - นามสกุล</th>
+                            <th class="py-3 px-4">หน่วยงาน / ฝ่าย</th>
+                            <th class="py-3 px-4 text-right">ค่าบริการก่อน VAT (บาท)</th>
+                            <th class="py-3 px-4 text-right">VAT 7%</th>
+                            <th class="py-3 px-4 text-right">รวมทั้งสิ้น (บาท)</th>
+                            <th class="py-3 px-4 text-center">ระดับค่าบริการ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dataTableBody" class="text-xs divide-y divide-slate-100 text-slate-700 bg-white">
+                        <!-- Dynamic rows -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination & Row Count -->
+            <div class="flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-2 pt-1">
+                <div id="tableRecordCount">แสดง 0 ถึง 0 จากทั้งหมด 0 รายการ</div>
+                <div class="flex items-center gap-2" id="paginationControls">
+                    <!-- Pagination buttons -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="text-center text-xs text-slate-400 py-3">
+            AIS Executive Telecom Analytics Dashboard &copy; 2026 | Real-time Integration with Google Sheet analyst
+        </footer>
+    </div>
+
+    <!-- Tier Detail Modal Drawer -->
+    <div id="tierModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white border border-slate-200 rounded-2xl max-w-3xl w-full max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+            <div class="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                <div class="flex items-center gap-3">
+                    <span id="modalTierBadge" class="px-3 py-1 rounded-lg text-xs font-bold">Tier Name</span>
+                    <h3 id="modalTitle" class="text-base font-bold text-slate-900">รายชื่อเบอร์โทรศัพท์ในกลุ่ม</h3>
+                </div>
+                <button onclick="closeModal()" class="w-8 h-8 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-600 flex items-center justify-center transition">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            
+            <div class="p-4 overflow-y-auto flex-1 bg-white">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-100 text-slate-600 text-xs border-b border-slate-200 font-semibold">
+                            <th class="py-2.5 px-3">เดือน/งวด</th>
+                            <th class="py-2.5 px-3">เบอร์โทรศัพท์</th>
+                            <th class="py-2.5 px-3">ชื่อ-นามสกุล</th>
+                            <th class="py-2.5 px-3">หน่วยงาน</th>
+                            <th class="py-2.5 px-3 text-right">ค่าบริการก่อน VAT</th>
+                        </tr>
+                    </thead>
+                    <tbody id="modalTableBody" class="text-xs divide-y divide-slate-100 text-slate-700">
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="p-3 border-t border-slate-100 bg-slate-50 flex justify-between items-center text-xs text-slate-600">
+                <span id="modalTotalSummary" class="font-medium">รวม 0 เบอร์ | ยอดรวมก่อน VAT: ฿0</span>
+                <button onclick="closeModal()" class="bg-slate-900 hover:bg-slate-800 text-white px-4 py-1.5 rounded-lg">ปิด</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * Tier Definition Standards (Pre-VAT Amount)
+         * 1. 1000plus: >= 1000
+         * 2. 800-1000: 800 - 1000
+         * 3. 500-800: 500 - 800
+         * 4. 300-500: 300 - 500
+         * 5. 100-300: 100 - 300
+         * 6. under100: > 0 && < 100
+         * 7. 0: == 0
+         */
+        const TIER_CONFIG = {
+            '1000plus': { label: '1,000 ขึ้นไป', min: 1000, max: Infinity, class: 'tier-badge-1000plus', color: '#e11d48' },
+            '800-1000': { label: '800 - 1,000', min: 800, max: 1000, class: 'tier-badge-800-1000', color: '#ea580c' },
+            '500-800': { label: '500 - 800', min: 500, max: 800, class: 'tier-badge-500-800', color: '#ca8a04' },
+            '300-500': { label: '300 - 500', min: 300, max: 500, class: 'tier-badge-300-500', color: '#65a30d' },
+            '100-300': { label: '300 - 100', min: 100, max: 300, class: 'tier-badge-100-300', color: '#0d9488' },
+            'under100': { label: 'ต่ำกว่า 100', min: 0.001, max: 100, class: 'tier-badge-under100', color: '#0284c7' },
+            '0': { label: '0 บาท', min: 0, max: 0, class: 'tier-badge-0', color: '#64748b' }
+        };
+
+        // Google Sheet URL target
+        const GOOGLE_SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/12ATUEH9tkgrKU4I47nW4UPhU9rEujCpD5lVNhmJCnBQ/gviz/tq?tqx=out:csv&sheet=analyst';
+
+        // Global State Variables
+        let rawDataset = [];
+        let filteredDataset = [];
+        let tierDoughnutChartInstance = null;
+        let deptBarChartInstance = null;
+        let currentPage = 1;
+        const pageSize = 10;
+
+        // Initialize on DOM Ready
+        window.onload = function () {
+            setupEventListeners();
+            fetchGoogleSheetData();
+        };
+
+        // Fetch Real-time Google Sheet Data
+        async function fetchGoogleSheetData() {
+            const syncDot = document.getElementById('syncDot');
+            const syncText = document.getElementById('syncText');
+            const refreshIcon = document.getElementById('refreshIcon');
+            
+            refreshIcon.classList.add('fa-spin');
+            syncText.innerText = "กำลังเชื่อมต่อ Google Sheet (analyst)...";
+            syncDot.className = "w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse";
+
+            try {
+                const response = await fetch(GOOGLE_SHEET_CSV_URL);
+                if (!response.ok) throw new Error('Network response was not ok');
+                
+                const csvText = await response.text();
+                const parsedRows = parseCSV(csvText);
+
+                if (parsedRows.length < 2) {
+                    throw new Error('No data rows found in Google Sheet');
+                }
+
+                // Header mapping
+                const headers = parsedRows[0].map(h => h.trim().toLowerCase());
+                
+                const monthIdx = headers.findIndex(h => /เดือน|month|period|งวด/i.test(h));
+                const phoneIdx = headers.findIndex(h => /เบอร์|phone|mobile|tel|number/i.test(h));
+                const nameIdx = headers.findIndex(h => /ชื่อ|name|user|employee|ผู้ใช้/i.test(h));
+                const deptIdx = headers.findIndex(h => /หน่วยงาน|สังกัด|แผนก|department|dept|section/i.test(h));
+                const amtIdx = headers.findIndex(h => /ก่อน|vat|pre|ยอด|ค่าบริการ|ค่าใช้จ่าย|amount|price|total/i.test(h));
+
+                const items = [];
+                for (let i = 1; i < parsedRows.length; i++) {
+                    const row = parsedRows[i];
+                    if (!row || row.length === 0) continue;
+
+                    const rawAmt = row[amtIdx >= 0 ? amtIdx : 3] || '0';
+                    const cleanAmt = parseFloat(String(rawAmt).replace(/,/g, '').replace(/฿/g, '')) || 0;
+                    
+                    const phoneVal = phoneIdx >= 0 ? row[phoneIdx] : (row[0] || '-');
+                    const nameVal = nameIdx >= 0 ? row[nameIdx] : (row[1] || 'ไม่ระบุชื่อ');
+                    const deptVal = deptIdx >= 0 ? row[deptIdx] : (row[2] || 'ไม่ระบุหน่วยงาน');
+                    const monthVal = monthIdx >= 0 ? row[monthIdx] : 'ปัจจุบัน';
+
+                    items.push({
+                        month: String(monthVal).trim() || 'ไม่ระบุงวด',
+                        phone: String(phoneVal).trim(),
+                        name: String(nameVal).trim() || 'ไม่ระบุชื่อ',
+                        dept: String(deptVal).trim() || 'ไม่ระบุหน่วยงาน',
+                        amount: cleanAmt
+                    });
+                }
+
+                rawDataset = items;
+                
+                // Update Sync Status
+                syncText.innerText = "เชื่อมต่อ Google Sheet สำเร็จ (analyst)";
+                syncDot.className = "w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse";
+                document.getElementById('lastUpdatedTime').innerText = `อัปเดต: ${new Date().toLocaleTimeString('th-TH')}`;
+                
+                processDataset();
+
+            } catch (error) {
+                console.warn('Google Sheet Live Fetch Warning, using fallback dataset:', error);
+                syncText.innerText = "ไม่สามารถดึงข้อมูลสดได้ (ใช้งาน Mock Data)";
+                syncDot.className = "w-2.5 h-2.5 rounded-full bg-amber-500";
+                
+                // Load fallback dataset if offline or blocked
+                loadFallbackDataset();
+            } finally {
+                refreshIcon.classList.remove('fa-spin');
+            }
+        }
+
+        // Standard robust CSV parser algorithm
+        function parseCSV(text) {
+            const lines = [];
+            let row = [];
+            let inQuotes = false;
+            let currentVal = '';
+
+            for (let i = 0; i < text.length; i++) {
+                const char = text[i];
+                const nextChar = text[i+1];
+
+                if (char === '"') {
+                    if (inQuotes && nextChar === '"') {
+                        currentVal += '"';
+                        i++;
+                    } else {
+                        inQuotes = !inQuotes;
+                    }
+                } else if (char === ',' && !inQuotes) {
+                    row.push(currentVal.trim());
+                    currentVal = '';
+                } else if ((char === '\r' || char === '\n') && !inQuotes) {
+                    if (char === '\r' && nextChar === '\n') { i++; }
+                    row.push(currentVal.trim());
+                    if (row.length > 0 && row.some(cell => cell.length > 0)) {
+                        lines.push(row);
+                    }
+                    row = [];
+                    currentVal = '';
+                } else {
+                    currentVal += char;
+                }
+            }
+            if (currentVal.length > 0 || row.length > 0) {
+                row.push(currentVal.trim());
+                lines.push(row);
+            }
+            return lines;
+        }
+
+        // Helper: Determine Tier key from Pre-VAT Amount
+        function getTierKey(amount) {
+            const val = parseFloat(amount) || 0;
+            if (val >= 1000) return '1000plus';
+            if (val >= 800 && val < 1000) return '800-1000';
+            if (val >= 500 && val < 800) return '500-800';
+            if (val >= 300 && val < 500) return '300-500';
+            if (val >= 100 && val < 300) return '100-300';
+            if (val > 0 && val < 100) return 'under100';
+            return '0';
+        }
+
+        function processDataset() {
+            rawDataset.forEach(item => {
+                item.tierKey = getTierKey(item.amount);
+                item.vat = item.amount * 0.07;
+                item.total = item.amount + item.vat;
+            });
+
+            populateFilterDropdowns();
+            applyFilters();
+        }
+
+        // Populate Month & Department Dynamic Filters
+        function populateFilterDropdowns() {
+            // Month Dropdown
+            const monthSelect = document.getElementById('monthFilterSelect');
+            const currentMonth = monthSelect.value;
+            const months = [...new Set(rawDataset.map(item => item.month || 'ไม่ระบุงวด'))].sort();
+            
+            monthSelect.innerHTML = '<option value="ALL">-- ทุกเดือน / งวด --</option>';
+            months.forEach(m => {
+                const opt = document.createElement('option');
+                opt.value = m;
+                opt.textContent = m;
+                monthSelect.appendChild(opt);
+            });
+            if (months.includes(currentMonth)) monthSelect.value = currentMonth;
+
+            // Department Dropdown
+            const deptSelect = document.getElementById('deptFilterSelect');
+            const currentDept = deptSelect.value;
+            const depts = [...new Set(rawDataset.map(item => item.dept || 'ไม่ระบุหน่วยงาน'))].sort();
+            
+            deptSelect.innerHTML = '<option value="ALL">-- ทุกหน่วยงาน --</option>';
+            depts.forEach(d => {
+                const opt = document.createElement('option');
+                opt.value = d;
+                opt.textContent = d;
+                deptSelect.appendChild(opt);
+            });
+            if (depts.includes(currentDept)) deptSelect.value = currentDept;
+        }
+
+        // Filter Logic Application
+        function applyFilters() {
+            const search = document.getElementById('searchInput').value.trim().toLowerCase();
+            const selectedMonth = document.getElementById('monthFilterSelect').value;
+            const selectedDept = document.getElementById('deptFilterSelect').value;
+            const selectedTier = document.getElementById('tierFilterSelect').value;
+
+            filteredDataset = rawDataset.filter(item => {
+                const matchesSearch = !search || 
+                    (item.phone && item.phone.toLowerCase().includes(search)) ||
+                    (item.name && item.name.toLowerCase().includes(search)) ||
+                    (item.dept && item.dept.toLowerCase().includes(search)) ||
+                    (item.month && item.month.toLowerCase().includes(search));
+                
+                const matchesMonth = (selectedMonth === 'ALL') || (item.month === selectedMonth);
+                const matchesDept = (selectedDept === 'ALL') || (item.dept === selectedDept);
+                const matchesTier = (selectedTier === 'ALL') || (item.tierKey === selectedTier);
+
+                return matchesSearch && matchesMonth && matchesDept && matchesTier;
+            });
+
+            currentPage = 1;
+            renderAll();
+        }
+
+        function renderAll() {
+            renderExecutiveMetrics();
+            renderTierCards();
+            renderCharts();
+            renderTable();
+        }
+
+        function renderExecutiveMetrics() {
+            const totalCount = filteredDataset.length;
+            const activeCount = filteredDataset.filter(d => d.amount > 0).length;
+            const preVatTotal = filteredDataset.reduce((sum, d) => sum + d.amount, 0);
+            const vatTotal = preVatTotal * 0.07;
+            const grandTotal = preVatTotal + vatTotal;
+            const avgPreVat = totalCount > 0 ? (preVatTotal / totalCount) : 0;
+
+            document.getElementById('statTotalCount').innerText = totalCount.toLocaleString();
+            document.getElementById('statActiveCount').innerText = `${activeCount.toLocaleString()} เบอร์มีค่าบริการ (${((activeCount/totalCount)*100||0).toFixed(0)}%)`;
+            document.getElementById('statPreVatTotal').innerText = `฿${preVatTotal.toLocaleString('th-TH', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.getElementById('statAvgPreVat').innerText = `฿${avgPreVat.toLocaleString('th-TH', {minimumFractionDigits: 0, maximumFractionDigits: 0})}`;
+            document.getElementById('statVatTotal').innerText = `฿${vatTotal.toLocaleString('th-TH', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.getElementById('statGrandTotal').innerText = `฿${grandTotal.toLocaleString('th-TH', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+
+            // Top Department Calculation
+            const deptTotals = {};
+            filteredDataset.forEach(d => {
+                const dept = d.dept || 'ไม่ระบุ';
+                deptTotals[dept] = (deptTotals[dept] || 0) + d.amount;
+            });
+
+            let topDeptName = '-';
+            let topDeptSum = 0;
+            Object.keys(deptTotals).forEach(dept => {
+                if (deptTotals[dept] > topDeptSum) {
+                    topDeptSum = deptTotals[dept];
+                    topDeptName = dept;
+                }
+            });
+
+            document.getElementById('statTopDept').innerText = topDeptName;
+            document.getElementById('statTopDeptAmount').innerText = `฿${topDeptSum.toLocaleString('th-TH', {maximumFractionDigits: 0})}`;
+        }
+
+        // Render 7 Tier Summary Cards
+        function renderTierCards() {
+            const container = document.getElementById('tierCardsContainer');
+            container.innerHTML = '';
+
+            const tierKeys = ['1000plus', '800-1000', '500-800', '300-500', '100-300', 'under100', '0'];
+
+            tierKeys.forEach(key => {
+                const cfg = TIER_CONFIG[key];
+                const itemsInTier = filteredDataset.filter(d => d.tierKey === key);
+                const count = itemsInTier.length;
+                const totalAmt = itemsInTier.reduce((sum, d) => sum + d.amount, 0);
+
+                const card = document.createElement('div');
+                card.className = `bg-white border border-slate-200 hover:border-slate-400 rounded-2xl p-3 flex flex-col justify-between cursor-pointer transition duration-200 shadow-sm hover:shadow-md group`;
+                card.onclick = () => openTierModal(key);
+
+                card.innerHTML = `
+                    <div class="flex items-center justify-between gap-1 mb-2">
+                        <span class="${cfg.class} text-[11px] font-bold px-2 py-0.5 rounded-md truncate max-w-[110px]">${cfg.label}</span>
+                        <i class="fa-solid fa-chevron-right text-[10px] text-slate-400 group-hover:text-slate-800 transition"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-baseline justify-between">
+                            <span class="text-xl font-extrabold text-slate-900">${count}</span>
+                            <span class="text-[10px] text-slate-400">เบอร์</span>
+                        </div>
+                        <div class="text-[11px] font-bold text-slate-700 mt-1">
+                            ฿${totalAmt.toLocaleString('th-TH', {maximumFractionDigits: 0})}
+                        </div>
+                    </div>
+                    <div class="w-full bg-slate-100 h-1.5 rounded-full mt-2.5 overflow-hidden">
+                        <div class="h-full rounded-full" style="width: ${filteredDataset.length > 0 ? (count/filteredDataset.length*100) : 0}%; background-color: ${cfg.color};"></div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function renderCharts() {
+            // Chart 1: Tier Doughnut Chart
+            const tierKeys = ['1000plus', '800-1000', '500-800', '300-500', '100-300', 'under100', '0'];
+            const tierCounts = tierKeys.map(k => filteredDataset.filter(d => d.tierKey === k).length);
+            const tierLabels = tierKeys.map(k => TIER_CONFIG[k].label);
+            const tierColors = tierKeys.map(k => TIER_CONFIG[k].color);
+
+            const ctxDoughnut = document.getElementById('tierDoughnutChart').getContext('2d');
+            if (tierDoughnutChartInstance) tierDoughnutChartInstance.destroy();
+
+            tierDoughnutChartInstance = new Chart(ctxDoughnut, {
+                type: 'doughnut',
+                data: {
+                    labels: tierLabels,
+                    datasets: [{
+                        data: tierCounts,
+                        backgroundColor: tierColors,
+                        borderWidth: 2,
+                        borderColor: '#ffffff',
+                        hoverOffset: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                color: '#475569',
+                                font: { family: 'Prompt', size: 11 },
+                                boxWidth: 12,
+                                padding: 10
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const key = tierKeys[context.dataIndex];
+                                    const items = filteredDataset.filter(d => d.tierKey === key);
+                                    const sumAmt = items.reduce((acc, i) => acc + i.amount, 0);
+                                    return ` ${context.label}: ${context.raw} เบอร์ (฿${sumAmt.toLocaleString()})`;
+                                }
+                            }
+                        }
+                    },
+                    onClick: (e, elements) => {
+                        if (elements.length > 0) {
+                            const index = elements[0].index;
+                            const clickedKey = tierKeys[index];
+                            document.getElementById('tierFilterSelect').value = clickedKey;
+                            applyFilters();
+                        }
+                    }
+                }
+            });
+
+            // Chart 2: Department Expense Bar Chart
+            const deptTotals = {};
+            filteredDataset.forEach(d => {
+                const dept = d.dept || 'ไม่ระบุ';
+                deptTotals[dept] = (deptTotals[dept] || 0) + d.amount;
+            });
+
+            const sortedDepts = Object.keys(deptTotals).sort((a,b) => deptTotals[b] - deptTotals[a]);
+            const deptAmounts = sortedDepts.map(d => deptTotals[d]);
+
+            document.getElementById('deptCountLabel').innerText = `${sortedDepts.length} หน่วยงาน`;
+
+            const ctxBar = document.getElementById('deptBarChart').getContext('2d');
+            if (deptBarChartInstance) deptBarChartInstance.destroy();
+
+            deptBarChartInstance = new Chart(ctxBar, {
+                type: 'bar',
+                data: {
+                    labels: sortedDepts,
+                    datasets: [{
+                        label: 'ค่าบริการก่อน VAT (บาท)',
+                        data: deptAmounts,
+                        backgroundColor: 'rgba(112, 178, 44, 0.85)',
+                        borderColor: '#70B22C',
+                        borderWidth: 1,
+                        borderRadius: 6,
+                        hoverBackgroundColor: '#589120'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: (ctx) => ` รวม Pre-VAT: ฿${ctx.raw.toLocaleString('th-TH', {minimumFractionDigits: 2})}`
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: { color: '#64748b', font: { family: 'Prompt', size: 10 } },
+                            grid: { display: false }
+                        },
+                        y: {
+                            ticks: { color: '#64748b', font: { family: 'Prompt', size: 10 } },
+                            grid: { color: '#f1f5f9' }
+                        }
+                    },
+                    onClick: (e, elements) => {
+                        if (elements.length > 0) {
+                            const index = elements[0].index;
+                            const clickedDept = sortedDepts[index];
+                            document.getElementById('deptFilterSelect').value = clickedDept;
+                            applyFilters();
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('dataTableBody');
+            tbody.innerHTML = '';
+
+            const totalRecords = filteredDataset.length;
+            const startIdx = (currentPage - 1) * pageSize;
+            const endIdx = Math.min(startIdx + pageSize, totalRecords);
+            const pageData = filteredDataset.slice(startIdx, endIdx);
+
+            if (pageData.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="9" class="text-center py-8 text-slate-400">
+                            <i class="fa-solid fa-folder-open text-3xl mb-2 block text-slate-300"></i>
+                            ไม่พบข้อมูลตรงตามเงื่อนไขที่ระบุ
+                        </td>
+                    </tr>
+                `;
+            } else {
+                pageData.forEach((item, index) => {
+                    const cfg = TIER_CONFIG[item.tierKey] || TIER_CONFIG['0'];
+                    const row = document.createElement('tr');
+                    row.className = "hover:bg-slate-50 transition duration-150";
+                    row.innerHTML = `
+                        <td class="py-3 px-4 font-mono text-slate-400 text-xs">${startIdx + index + 1}</td>
+                        <td class="py-3 px-4 font-medium text-slate-600">${item.month || '-'}</td>
+                        <td class="py-3 px-4 font-semibold text-slate-900 font-mono">${item.phone || '-'}</td>
+                        <td class="py-3 px-4 font-medium text-slate-800">${item.name || 'ไม่ระบุชื่อ'}</td>
+                        <td class="py-3 px-4 text-slate-600">${item.dept || 'ไม่ระบุหน่วยงาน'}</td>
+                        <td class="py-3 px-4 text-right font-mono font-bold text-emerald-700">฿${(item.amount||0).toLocaleString('th-TH', {minimumFractionDigits: 2})}</td>
+                        <td class="py-3 px-4 text-right font-mono text-slate-500">฿${(item.vat||0).toLocaleString('th-TH', {minimumFractionDigits: 2})}</td>
+                        <td class="py-3 px-4 text-right font-mono font-bold text-slate-900">฿${(item.total||0).toLocaleString('th-TH', {minimumFractionDigits: 2})}</td>
+                        <td class="py-3 px-4 text-center">
+                            <span class="${cfg.class} px-2.5 py-1 rounded-md text-[11px] font-semibold inline-block">${cfg.label}</span>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            }
+
+            // Update Counter
+            document.getElementById('tableRecordCount').innerText = 
+                totalRecords > 0 
+                ? `แสดง ${startIdx + 1} ถึง ${endIdx} จากทั้งหมด ${totalRecords.toLocaleString()} เบอร์`
+                : 'แสดง 0 ถึง 0 จากทั้งหมด 0 เบอร์';
+
+            // Pagination Controls
+            const totalPages = Math.ceil(totalRecords / pageSize) || 1;
+            const paginationContainer = document.getElementById('paginationControls');
+            paginationContainer.innerHTML = '';
+
+            const prevBtn = document.createElement('button');
+            prevBtn.className = `px-2.5 py-1 rounded-lg border text-xs font-semibold ${currentPage === 1 ? 'border-slate-200 text-slate-300 cursor-not-allowed' : 'border-slate-300 text-slate-700 hover:bg-slate-100'}`;
+            prevBtn.innerHTML = `<i class="fa-solid fa-chevron-left"></i>`;
+            prevBtn.disabled = currentPage === 1;
+            prevBtn.onclick = () => { if(currentPage > 1) { currentPage--; renderTable(); } };
+            paginationContainer.appendChild(prevBtn);
+
+            const pageIndicator = document.createElement('span');
+            pageIndicator.className = 'px-2 text-xs font-medium text-slate-600';
+            pageIndicator.innerText = `หน้า ${currentPage} / ${totalPages}`;
+            paginationContainer.appendChild(pageIndicator);
+
+            const nextBtn = document.createElement('button');
+            nextBtn.className = `px-2.5 py-1 rounded-lg border text-xs font-semibold ${currentPage === totalPages ? 'border-slate-200 text-slate-300 cursor-not-allowed' : 'border-slate-300 text-slate-700 hover:bg-slate-100'}`;
+            nextBtn.innerHTML = `<i class="fa-solid fa-chevron-right"></i>`;
+            nextBtn.disabled = currentPage === totalPages;
+            nextBtn.onclick = () => { if(currentPage < totalPages) { currentPage++; renderTable(); } };
+            paginationContainer.appendChild(nextBtn);
+        }
+
+        function setupEventListeners() {
+            document.getElementById('searchInput').addEventListener('input', applyFilters);
+            document.getElementById('monthFilterSelect').addEventListener('change', applyFilters);
+            document.getElementById('deptFilterSelect').addEventListener('change', applyFilters);
+            document.getElementById('tierFilterSelect').addEventListener('change', applyFilters);
+            document.getElementById('excelFileInput').addEventListener('change', handleFileUpload);
+        }
+
+        function resetFilters() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('monthFilterSelect').value = 'ALL';
+            document.getElementById('deptFilterSelect').value = 'ALL';
+            document.getElementById('tierFilterSelect').value = 'ALL';
+            applyFilters();
+        }
+
+        // Tier Detail Drill-down Modal Drawer
+        function openTierModal(tierKey) {
+            const cfg = TIER_CONFIG[tierKey];
+            const items = filteredDataset.filter(d => d.tierKey === tierKey);
+            const totalAmt = items.reduce((sum, d) => sum + d.amount, 0);
+
+            const modalBadge = document.getElementById('modalTierBadge');
+            modalBadge.innerText = cfg.label;
+            modalBadge.className = `px-3 py-1 rounded-lg text-xs font-bold ${cfg.class}`;
+
+            document.getElementById('modalTitle').innerText = `รายชื่อเบอร์โทรศัพท์กลุ่ม: ${cfg.label}`;
+            
+            const modalBody = document.getElementById('modalTableBody');
+            modalBody.innerHTML = '';
+
+            if (items.length === 0) {
+                modalBody.innerHTML = `<tr><td colspan="5" class="text-center py-6 text-slate-400">ไม่มีเบอร์ในกลุ่มนี้</td></tr>`;
+            } else {
+                items.forEach(item => {
+                    const row = document.createElement('tr');
+                    row.className = "hover:bg-slate-50";
+                    row.innerHTML = `
+                        <td class="py-2.5 px-3 text-slate-500 font-medium">${item.month || '-'}</td>
+                        <td class="py-2.5 px-3 font-mono font-semibold text-slate-900">${item.phone || '-'}</td>
+                        <td class="py-2.5 px-3 font-medium text-slate-800">${item.name || 'ไม่ระบุชื่อ'}</td>
+                        <td class="py-2.5 px-3 text-slate-600">${item.dept || 'ไม่ระบุหน่วยงาน'}</td>
+                        <td class="py-2.5 px-3 text-right font-mono font-bold text-emerald-700">฿${(item.amount||0).toLocaleString('th-TH', {minimumFractionDigits: 2})}</td>
+                    `;
+                    modalBody.appendChild(row);
+                });
+            }
+
+            document.getElementById('modalTotalSummary').innerText = `รวมทั้งหมด ${items.length} เบอร์ | ยอดรวมก่อน VAT: ฿${totalAmt.toLocaleString('th-TH', {minimumFractionDigits: 2})}`;
+            document.getElementById('tierModal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('tierModal').classList.add('hidden');
+        }
+
+        function handleFileUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                try {
+                    const data = new Uint8Array(evt.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+
+                    if (!jsonData || jsonData.length === 0) {
+                        alert('ไม่พบข้อมูลในไฟล์ Excel ที่อัปโหลด');
+                        return;
+                    }
+
+                    const parsedDataset = [];
+                    jsonData.forEach(row => {
+                        const keys = Object.keys(row);
+                        
+                        const monthKey = keys.find(k => /เดือน|month|period|งวด/i.test(k)) || keys[0];
+                        const phoneKey = keys.find(k => /เบอร์|phone|mobile|tel|number/i.test(k)) || keys[1];
+                        const nameKey = keys.find(k => /ชื่อ|name|user|employee/i.test(k)) || keys[2];
+                        const deptKey = keys.find(k => /หน่วยงาน|สังกัด|แผนก|department|dept|section/i.test(k)) || keys[3];
+                        const amountKey = keys.find(k => /ก่อน|vat|pre|ยอด|ค่าบริการ|ค่าใช้จ่าย|amount|price|total/i.test(k)) || keys[4];
+
+                        const rawAmt = row[amountKey];
+                        let cleanAmt = 0;
+                        if (typeof rawAmt === 'number') {
+                            cleanAmt = rawAmt;
+                        } else if (typeof rawAmt === 'string') {
+                            cleanAmt = parseFloat(rawAmt.replace(/,/g, '').replace(/฿/g, '')) || 0;
+                        }
+
+                        parsedDataset.push({
+                            month: String(row[monthKey] || 'ปัจจุบัน').trim(),
+                            phone: String(row[phoneKey] || '-').trim(),
+                            name: String(row[nameKey] || 'ไม่ระบุ').trim(),
+                            dept: String(row[deptKey] || 'ไม่ระบุหน่วยงาน').trim(),
+                            amount: cleanAmt
+                        });
+                    });
+
+                    rawDataset = parsedDataset;
+                    processDataset();
+
+                    document.getElementById('syncText').innerText = `อัปโหลดไฟล์: ${file.name}`;
+                    document.getElementById('syncDot').className = "w-2.5 h-2.5 rounded-full bg-blue-500";
+                    alert(`อัปโหลดสำเร็จ! ประมวลผลเรียบร้อย ${parsedDataset.length} รายการ`);
+
+                } catch (err) {
+                    console.error('Excel Parsing Error:', err);
+                    alert('เกิดข้อผิดพลาดในการอ่านไฟล์ Excel กรุณาตรวจสอบรูปแบบ');
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // Mock Fallback Data in case Google Sheet connection is blocked
+        function loadFallbackDataset() {
+            rawDataset = [
+                { month: 'มกราคม 2569', phone: '081-829-1029', name: 'คุณสมชาย วงศ์สว่าง', dept: 'ฝ่ายบริหาร (Executive)', amount: 1450.00 },
+                { month: 'มกราคม 2569', phone: '089-201-9482', name: 'คุณณัฐพล มีทรัพย์', dept: 'ฝ่ายบริหาร (Executive)', amount: 1200.00 },
+                { month: 'มกราคม 2569', phone: '086-339-1102', name: 'คุณวิภาวี เลิศรุ่งโรจน์', dept: 'ฝ่ายขาย (Sales)', amount: 1050.50 },
+                { month: 'มกราคม 2569', phone: '092-441-8821', name: 'คุณธนกฤต สุขเจริญ', dept: 'ฝ่ายขาย (Sales)', amount: 980.00 },
+                { month: 'มกราคม 2569', phone: '081-772-9011', name: 'คุณกิตติศักดิ์ บุญมี', dept: 'ฝ่ายขาย (Sales)', amount: 920.00 },
+                { month: 'มกราคม 2569', phone: '089-551-4029', name: 'คุณปิยะนันท์ พรหมมินทร์', dept: 'ฝ่าย IT', amount: 890.00 },
+                { month: 'มกราคม 2569', phone: '086-112-4099', name: 'คุณอนันต์ แสงสุวรรณ', dept: 'ฝ่าย IT', amount: 810.00 },
+                { month: 'มกราคม 2569', phone: '098-223-4910', name: 'คุณสิรินธร จันทรสถิต', dept: 'ฝ่ายการตลาด', amount: 780.00 },
+                { month: 'มกราคม 2569', phone: '081-304-9812', name: 'คุณชลธิชา ศรีสุข', dept: 'ฝ่ายการตลาด', amount: 750.00 },
+                { month: 'มกราคม 2569', phone: '089-661-3920', name: 'คุณภาณุพงศ์ ใจดี', dept: 'ฝ่ายปฏิบัติการ', amount: 680.00 },
+                { month: 'มกราคม 2569', phone: '092-118-2741', name: 'คุณมนัสชนก ไพโรจน์', dept: 'ฝ่ายปฏิบัติการ', amount: 620.00 },
+                { month: 'มกราคม 2569', phone: '086-773-1928', name: 'คุณวรวุฒิ กล้าหาญ', dept: 'ฝ่ายปฏิบัติการ', amount: 590.00 },
+                { month: 'กุมภาพันธ์ 2569', phone: '081-445-8120', name: 'คุณสุดารัตน์ เจริญพร', dept: 'ฝ่ายบัญชีและการเงิน', amount: 540.00 },
+                { month: 'กุมภาพันธ์ 2569', phone: '089-992-1044', name: 'คุณพงศธร มั่นคง', dept: 'ฝ่ายบัญชีและการเงิน', amount: 510.00 },
+                { month: 'กุมภาพันธ์ 2569', phone: '098-771-3329', name: 'คุณเบญจวรรณ พงษ์ไทย', dept: 'ฝ่าย HR', amount: 480.00 },
+                { month: 'กุมภาพันธ์ 2569', phone: '086-554-1022', name: 'คุณเอกชัย ยอดเยี่ยม', dept: 'ฝ่าย HR', amount: 450.00 },
+                { month: 'กุมภาพันธ์ 2569', phone: '081-229-8811', name: 'คุณกมลวรรณ ทรัพย์มาก', dept: 'ฝ่ายบริการลูกค้า', amount: 420.00 },
+                { month: 'กุมภาพันธ์ 2569', phone: '089-331-4772', name: 'คุณจิรายุ ธรรมดี', dept: 'ฝ่ายบริการลูกค้า', amount: 390.00 },
+                { month: 'กุมภาพันธ์ 2569', phone: '092-884-1920', name: 'คุณนพดล อินทร์จันทร์', dept: 'ฝ่ายจัดซื้อ', amount: 350.00 },
+                { month: 'กุมภาพันธ์ 2569', phone: '086-992-0011', name: 'คุณศิริพร บุญส่ง', dept: 'ฝ่ายจัดซื้อ', amount: 310.00 },
+                { month: 'กุมภาพันธ์ 2569', phone: '081-112-9482', name: 'คุณธนาดล อรุณโรจน์', dept: 'ฝ่ายขาย (Sales)', amount: 290.00 },
+                { month: 'กุมภาพันธ์ 2569', phone: '089-445-7712', name: 'คุณอารียา นามสมบูรณ์', dept: 'ฝ่ายการตลาด', amount: 260.00 },
+                { month: 'กุมภาพันธ์ 2569', phone: '098-112-3094', name: 'คุณชยพล แก้วมณี', dept: 'ฝ่ายปฏิบัติการ', amount: 230.00 },
+                { month: 'กุมภาพันธ์ 2569', phone: '086-881-2940', name: 'คุณรัตนาพร คุ้มครอง', dept: 'ฝ่ายบริการลูกค้า', amount: 190.00 },
+                { month: 'กุมภาพันธ์ 2569', phone: '081-554-9102', name: 'คุณธนพล ศรีวิชัย', dept: 'ฝ่าย IT', amount: 150.00 },
+                { month: 'กุมภาพันธ์ 2569', phone: '089-771-8823', name: 'คุณพิชญ์สินี มงคล', dept: 'ฝ่ายบัญชีและการเงิน', amount: 120.00 },
+                { month: 'กุมภาพันธ์ 2569', phone: '092-334-9102', name: 'คุณยุทธนา สุขสบาย', dept: 'ฝ่าย HR', amount: 95.00 },
+                { month: 'กุมภาพันธ์ 2569', phone: '086-224-1188', name: 'คุณวรรณิดา มีสุข', dept: 'ฝ่ายบริการลูกค้า', amount: 75.00 },
+                { month: 'กุมภาพันธ์ 2569', phone: '081-992-4011', name: 'คุณเกียรติศักดิ์ เจริญดี', dept: 'ฝ่ายปฏิบัติการ', amount: 45.00 },
+                { month: 'กุมภาพันธ์ 2569', phone: '089-114-8820', name: 'คุณกุลธิดา สุวรรณ', dept: 'ฝ่ายคลังสินค้า', amount: 20.00 },
+                { month: 'กุมภาพันธ์ 2569', phone: '098-441-2900', name: 'คุณธีรพงษ์ จันทร์งาม', dept: 'ฝ่ายคลังสินค้า', amount: 0.00 },
+                { month: 'กุมภาพันธ์ 2569', phone: '086-663-1948', name: 'คุณพรทิพย์ เจริญผล', dept: 'ฝ่ายสำรอง', amount: 0.00 }
+            ];
+            processDataset();
+        }
+
+        // Export Clean CSV Summary
+        function exportSummaryCSV() {
+            if (filteredDataset.length === 0) {
+                alert('ไม่มีข้อมูลสำหรับส่งออก');
+                return;
+            }
+
+            let csvContent = "\uFEFF"; // UTF-8 BOM for Thai Excel
+            csvContent += "ลำดับ,งวด/เดือน,เบอร์โทรศัพท์,ชื่อ-นามสกุล,หน่วยงาน,ค่าบริการก่อน VAT (บาท),VAT 7% (บาท),รวมทั้งสิ้น (บาท),ระดับค่าบริการ\n";
+
+            filteredDataset.forEach((item, index) => {
+                const cfg = TIER_CONFIG[item.tierKey] || TIER_CONFIG['0'];
+                const rowStr = [
+                    index + 1,
+                    `"${item.month || ''}"`,
+                    `"${item.phone || ''}"`,
+                    `"${item.name || ''}"`,
+                    `"${item.dept || ''}"`,
+                    item.amount.toFixed(2),
+                    item.vat.toFixed(2),
+                    item.total.toFixed(2),
+                    `"${cfg.label}"`
+                ].join(",");
+                csvContent += rowStr + "\n";
+            });
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.setAttribute('href', url);
+            link.setAttribute('download', `AIS_Telecom_Expense_Summary_${new Date().toISOString().slice(0,10)}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html>
