@@ -635,8 +635,11 @@
             '0': { label: '0 บาท', min: 0, max: 0, class: 'tier-badge-0', color: '#64748b' }
         };
 
-        // Live Google Sheet URL Target
-        const GOOGLE_SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/12ATUEH9tkgrKU4I47nW4UPhU9rEujCpD5lVNhmJCnBQ/gviz/tq?tqx=out:csv&sheet=analyst';
+        // Live Google Sheet Target Configuration
+        const SHEET_ID = '12ATUEH9tkgrKU4I47nW4UPhU9rEujCpD5lVNhmJCnBQ';
+        const SHEET_NAME = 'analyst';
+        const GOOGLE_SHEET_CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(SHEET_NAME)}`;
+        const GOOGLE_SHEET_EXPORT_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&sheet=${encodeURIComponent(SHEET_NAME)}`;
 
         // Global Application State Variables
         let rawDataset = [];
@@ -697,18 +700,21 @@
             const refreshIcon = document.getElementById('refreshIcon');
             
             refreshIcon.classList.add('fa-spin');
-            syncText.innerText = "กำลังเชื่อมต่อ Google Sheet (analyst)...";
+            syncText.innerText = `กำลังดึงข้อมูล Google Sheet (${SHEET_NAME})...`;
             syncDot.className = "w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse";
 
             try {
-                const response = await fetch(GOOGLE_SHEET_CSV_URL);
+                let response = await fetch(GOOGLE_SHEET_CSV_URL);
+                if (!response.ok) {
+                    response = await fetch(GOOGLE_SHEET_EXPORT_URL);
+                }
                 if (!response.ok) throw new Error('Network response was not ok');
                 
                 const csvText = await response.text();
                 const parsedRows = parseCSV(csvText);
 
-                if (parsedRows.length < 2) {
-                    throw new Error('No data rows found in Google Sheet');
+                if (!parsedRows || parsedRows.length < 2) {
+                    throw new Error('ไม่พบข้อมูลในชีต analyst');
                 }
 
                 const headers = parsedRows[0].map(h => h.trim().toLowerCase());
@@ -747,10 +753,10 @@
                         mvpnOther = parseFloat(String(row[mvpnOtherIdx]).replace(/,/g, '').replace(/฿/g, '')) || 0;
                     }
 
-                    // If MVPN columns aren't separate in sheet, calculate proportional estimation (45-65% AIS, remainder Off-net)
+                    // If MVPN columns aren't separate in sheet, calculate proportional estimation (45-75% AIS, remainder Off-net)
                     if (mvpnAis === 0 && mvpnOther === 0 && cleanAmt > 0) {
                         const hash = (phoneVal + nameVal).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-                        const aisRatio = 0.45 + ((hash % 30) / 100); // 45% - 75% ratio
+                        const aisRatio = 0.45 + ((hash % 30) / 100);
                         mvpnAis = Math.round(cleanAmt * aisRatio * 100) / 100;
                         mvpnOther = Math.round((cleanAmt - mvpnAis) * 100) / 100;
                     }
@@ -768,18 +774,20 @@
 
                 rawDataset = items;
                 
-                syncText.innerText = "เชื่อมต่อ Google Sheet สำเร็จ (analyst)";
+                syncText.innerText = `ดึงข้อมูลสำเร็จ (Google Sheet: ${SHEET_NAME})`;
                 syncDot.className = "w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse";
                 document.getElementById('lastUpdatedTime').innerText = `อัปเดต: ${new Date().toLocaleTimeString('th-TH')}`;
                 
                 processDataset();
 
             } catch (error) {
-                console.warn('Google Sheet Live Fetch Warning, using fallback dataset:', error);
-                syncText.innerText = "ไม่สามารถดึงข้อมูลสดได้ (ใช้งาน Mock Data)";
-                syncDot.className = "w-2.5 h-2.5 rounded-full bg-amber-500";
+                console.error('Google Sheet Live Fetch Error:', error);
+                syncText.innerText = "ไม่สามารถดึงข้อมูลได้ (กรุณาเปิดสิทธิ์ Google Sheet ให้ทุกคนที่มีลิงก์ดูได้)";
+                syncDot.className = "w-2.5 h-2.5 rounded-full bg-red-500";
                 
-                loadFallbackDataset();
+                // NO MOCK DATA - Set empty dataset as requested
+                rawDataset = [];
+                processDataset();
             } finally {
                 refreshIcon.classList.remove('fa-spin');
             }
@@ -1591,44 +1599,6 @@
                 }
             };
             reader.readAsArrayBuffer(file);
-        }
-
-        function loadFallbackDataset() {
-            rawDataset = [
-                { month: 'มกราคม 2569', phone: '081-829-1029', name: 'คุณสมชาย วงศ์สว่าง', dept: 'ฝ่ายบริหาร (Executive)', amount: 1450.00, mvpnAis: 950.00, mvpnOther: 500.00 },
-                { month: 'มกราคม 2569', phone: '089-201-9482', name: 'คุณณัฐพล มีทรัพย์', dept: 'ฝ่ายบริหาร (Executive)', amount: 1200.00, mvpnAis: 800.00, mvpnOther: 400.00 },
-                { month: 'มกราคม 2569', phone: '086-339-1102', name: 'คุณวิภาวี เลิศรุ่งโรจน์', dept: 'ฝ่ายขาย (Sales)', amount: 1050.50, mvpnAis: 450.00, mvpnOther: 600.50 },
-                { month: 'มกราคม 2569', phone: '092-441-8821', name: 'คุณธนกฤต สุขเจริญ', dept: 'ฝ่ายขาย (Sales)', amount: 980.00, mvpnAis: 380.00, mvpnOther: 600.00 },
-                { month: 'มกราคม 2569', phone: '081-772-9011', name: 'คุณกิตติศักดิ์ บุญมี', dept: 'ฝ่ายขาย (Sales)', amount: 920.00, mvpnAis: 300.00, mvpnOther: 620.00 },
-                { month: 'มกราคม 2569', phone: '089-551-4029', name: 'คุณปิยะนันท์ พรหมมินทร์', dept: 'ฝ่าย IT', amount: 890.00, mvpnAis: 600.00, mvpnOther: 290.00 },
-                { month: 'มกราคม 2569', phone: '086-112-4099', name: 'คุณอนันต์ แสงสุวรรณ', dept: 'ฝ่าย IT', amount: 810.00, mvpnAis: 550.00, mvpnOther: 260.00 },
-                { month: 'มกราคม 2569', phone: '098-223-4910', name: 'คุณสิรินธร จันทรสถิต', dept: 'ฝ่ายการตลาด', amount: 780.00, mvpnAis: 300.00, mvpnOther: 480.00 },
-                { month: 'มกราคม 2569', phone: '081-304-9812', name: 'คุณชลธิชา ศรีสุข', dept: 'ฝ่ายการตลาด', amount: 750.00, mvpnAis: 280.00, mvpnOther: 470.00 },
-                { month: 'มกราคม 2569', phone: '089-661-3920', name: 'คุณภาณุพงศ์ ใจดี', dept: 'ฝ่ายปฏิบัติการ', amount: 680.00, mvpnAis: 400.00, mvpnOther: 280.00 },
-                { month: 'มกราคม 2569', phone: '092-118-2741', name: 'คุณมนัสชนก ไพโรจน์', dept: 'ฝ่ายปฏิบัติการ', amount: 620.00, mvpnAis: 390.00, mvpnOther: 230.00 },
-                { month: 'มกราคม 2569', phone: '086-773-1928', name: 'คุณวรวุฒิ กล้าหาญ', dept: 'ฝ่ายปฏิบัติการ', amount: 590.00, mvpnAis: 350.00, mvpnOther: 240.00 },
-                { month: 'กุมภาพันธ์ 2569', phone: '081-445-8120', name: 'คุณสุดารัตน์ เจริญพร', dept: 'ฝ่ายบัญชีและการเงิน', amount: 540.00, mvpnAis: 340.00, mvpnOther: 200.00 },
-                { month: 'กุมภาพันธ์ 2569', phone: '089-992-1044', name: 'คุณพงศธร มั่นคง', dept: 'ฝ่ายบัญชีและการเงิน', amount: 510.00, mvpnAis: 310.00, mvpnOther: 200.00 },
-                { month: 'กุมภาพันธ์ 2569', phone: '098-771-3329', name: 'คุณเบญจวรรณ พงษ์ไทย', dept: 'ฝ่าย HR', amount: 480.00, mvpnAis: 280.00, mvpnOther: 200.00 },
-                { month: 'กุมภาพันธ์ 2569', phone: '086-554-1022', name: 'คุณเอกชัย ยอดเยี่ยม', dept: 'ฝ่าย HR', amount: 450.00, mvpnAis: 250.00, mvpnOther: 200.00 },
-                { month: 'กุมภาพันธ์ 2569', phone: '081-229-8811', name: 'คุณกมลวรรณ ทรัพย์มาก', dept: 'ฝ่ายบริการลูกค้า', amount: 420.00, mvpnAis: 120.00, mvpnOther: 300.00 },
-                { month: 'กุมภาพันธ์ 2569', phone: '089-331-4772', name: 'คุณจิรายุ ธรรมดี', dept: 'ฝ่ายบริการลูกค้า', amount: 390.00, mvpnAis: 90.00, mvpnOther: 300.00 },
-                { month: 'กุมภาพันธ์ 2569', phone: '092-884-1920', name: 'คุณนพดล อินทร์จันทร์', dept: 'ฝ่ายจัดซื้อ', amount: 350.00, mvpnAis: 200.00, mvpnOther: 150.00 },
-                { month: 'กุมภาพันธ์ 2569', phone: '086-992-0011', name: 'คุณศิริพร บุญส่ง', dept: 'ฝ่ายจัดซื้อ', amount: 310.00, mvpnAis: 180.00, mvpnOther: 130.00 },
-                { month: 'กุมภาพันธ์ 2569', phone: '081-112-9482', name: 'คุณธนาดล อรุณโรจน์', dept: 'ฝ่ายขาย (Sales)', amount: 290.00, mvpnAis: 90.00, mvpnOther: 200.00 },
-                { month: 'กุมภาพันธ์ 2569', phone: '089-445-7712', name: 'คุณอารียา นามสมบูรณ์', dept: 'ฝ่ายการตลาด', amount: 260.00, mvpnAis: 80.00, mvpnOther: 180.00 },
-                { month: 'กุมภาพันธ์ 2569', phone: '098-112-3094', name: 'คุณชยพล แก้วมณี', dept: 'ฝ่ายปฏิบัติการ', amount: 230.00, mvpnAis: 130.00, mvpnOther: 100.00 },
-                { month: 'กุมภาพันธ์ 2569', phone: '086-881-2940', name: 'คุณรัตนาพร คุ้มครอง', dept: 'ฝ่ายบริการลูกค้า', amount: 190.00, mvpnAis: 50.00, mvpnOther: 140.00 },
-                { month: 'กุมภาพันธ์ 2569', phone: '081-554-9102', name: 'คุณธนพล ศรีวิชัย', dept: 'ฝ่าย IT', amount: 150.00, mvpnAis: 100.00, mvpnOther: 50.00 },
-                { month: 'กุมภาพันธ์ 2569', phone: '089-771-8823', name: 'คุณพิชญ์สินี มงคล', dept: 'ฝ่ายบัญชีและการเงิน', amount: 120.00, mvpnAis: 80.00, mvpnOther: 40.00 },
-                { month: 'กุมภาพันธ์ 2569', phone: '092-334-9102', name: 'คุณยุทธนา สุขสบาย', dept: 'ฝ่าย HR', amount: 95.00, mvpnAis: 60.00, mvpnOther: 35.00 },
-                { month: 'กุมภาพันธ์ 2569', phone: '086-224-1188', name: 'คุณวรรณิดา มีสุข', dept: 'ฝ่ายบริการลูกค้า', amount: 75.00, mvpnAis: 25.00, mvpnOther: 50.00 },
-                { month: 'กุมภาพันธ์ 2569', phone: '081-992-4011', name: 'คุณเกียรติศักดิ์ เจริญดี', dept: 'ฝ่ายปฏิบัติการ', amount: 45.00, mvpnAis: 30.00, mvpnOther: 15.00 },
-                { month: 'กุมภาพันธ์ 2569', phone: '089-114-8820', name: 'คุณกุลธิดา สุวรรณ', dept: 'ฝ่ายคลังสินค้า', amount: 20.00, mvpnAis: 15.00, mvpnOther: 5.00 },
-                { month: 'กุมภาพันธ์ 2569', phone: '098-441-2900', name: 'คุณธีรพงษ์ จันทร์งาม', dept: 'ฝ่ายคลังสินค้า', amount: 0.00, mvpnAis: 0.00, mvpnOther: 0.00 },
-                { month: 'กุมภาพันธ์ 2569', phone: '086-663-1948', name: 'คุณพรทิพย์ เจริญผล', dept: 'ฝ่ายสำรอง', amount: 0.00, mvpnAis: 0.00, mvpnOther: 0.00 }
-            ];
-            processDataset();
         }
 
         function exportSummaryCSV() {
