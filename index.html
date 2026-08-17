@@ -196,6 +196,48 @@
             <div id="activeFilterTags" class="flex items-center gap-2 flex-wrap"></div>
         </div>
 
+        <!-- Calculation Note Card (สูตรการคำนวณและหักค่าเครื่อง) -->
+        <div class="bg-gradient-to-r from-emerald-50 via-teal-50 to-slate-50 border border-emerald-200/80 rounded-2xl p-4 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div class="flex items-start md:items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-ais-green text-white flex items-center justify-center font-bold text-lg shadow-md shadow-ais-green/20 flex-shrink-0">
+                    <i class="fa-solid fa-calculator"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-bold text-emerald-800 bg-emerald-100/80 px-2.5 py-0.5 rounded-md border border-emerald-200">
+                            <i class="fa-solid fa-note-sticky mr-1"></i>หมายเหตุสูตรการคำนวณ (Calculation Note)
+                        </span>
+                        <span class="text-[11px] text-slate-500 font-semibold">ประจำเดือน Jun</span>
+                    </div>
+                    <p class="text-xs text-slate-600 mt-1 font-medium">
+                        สรุปการคำนวณยอดค่าบริการเฉลี่ยต่อเครื่อง และหักค่างวดอุปกรณ์ประจำเดือน
+                    </p>
+                </div>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2 md:gap-3 text-xs bg-white/90 backdrop-blur-sm p-2.5 rounded-xl border border-slate-200/80 shadow-sm">
+                <!-- Step 1 -->
+                <div class="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100/90 rounded-lg border border-slate-200">
+                    <span class="text-slate-500 font-medium">เดือน Jun / 197 เครื่อง:</span>
+                    <span class="font-bold text-slate-900 font-mono">฿476.76</span>
+                </div>
+                <span class="text-slate-400 font-black text-sm">-</span>
+                
+                <!-- Step 2 -->
+                <div class="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 rounded-lg border border-amber-200/80">
+                    <span class="text-amber-800 font-medium">ค่าเครื่อง (6,990 / 36 เดือน):</span>
+                    <span class="font-bold text-amber-900 font-mono">฿194.17</span>
+                </div>
+                <span class="text-slate-400 font-black text-sm">=</span>
+                
+                <!-- Step 3 -->
+                <div class="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-100/90 rounded-lg border border-emerald-300">
+                    <span class="text-emerald-800 font-bold">คงเหลือสุทธิ:</span>
+                    <span class="font-black text-emerald-700 font-mono text-sm">฿282.59</span>
+                </div>
+            </div>
+        </div>
+
         <!-- ========================================================================= -->
         <!-- TAB 1: OVERVIEW & 7 TIERS CONTENT                                         -->
         <!-- ========================================================================= -->
@@ -283,19 +325,19 @@
 
             <!-- Charts Area (16:9 Mid Grid) -->
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
-                <!-- Doughnut Chart: Tier Proportion (5 cols) -->
+                <!-- Horizontal Bar Chart: Tier Distribution (5 cols) -->
                 <div class="lg:col-span-5 bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm flex flex-col justify-between min-h-[380px]">
                     <div class="flex items-center justify-between mb-3">
                         <div class="flex items-center gap-2">
-                            <i class="fa-solid fa-chart-pie text-ais-green"></i>
-                            <h2 class="text-base font-bold text-slate-900">สัดส่วนเบอร์ตามระดับค่าบริการ (7 Tiers)</h2>
+                            <i class="fa-solid fa-chart-bar text-ais-green"></i>
+                            <h2 class="text-base font-bold text-slate-900">จำนวนเบอร์ตามระดับค่าบริการ (7 Tiers)</h2>
                         </div>
                         <span class="text-xs text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200">Pre-VAT</span>
                     </div>
                     <div class="relative flex-1 flex items-center justify-center py-2">
                         <canvas id="tierDoughnutChart" class="max-h-[280px]"></canvas>
                     </div>
-                    <p class="text-[11px] text-slate-400 text-center mt-2">คลิกส่วนของกราฟเพื่อกรองตารางตามระดับราคา</p>
+                    <p class="text-[11px] text-slate-400 text-center mt-2">คลิกแท่งกราฟเพื่อกรองตารางตามระดับราคา</p>
                 </div>
 
                 <!-- Bar Chart: Department Spend Breakdown (7 cols) -->
@@ -1021,34 +1063,44 @@
             if (tierDoughnutChartInstance) tierDoughnutChartInstance.destroy();
 
             tierDoughnutChartInstance = new Chart(ctxDoughnut, {
-                type: 'doughnut',
+                type: 'bar',
                 data: {
                     labels: tierLabels,
                     datasets: [{
+                        label: 'จำนวนเบอร์',
                         data: tierCounts,
                         backgroundColor: tierColors,
-                        borderWidth: 2,
-                        borderColor: '#ffffff',
-                        hoverOffset: 6
+                        borderColor: tierColors,
+                        borderWidth: 1,
+                        borderRadius: 6
                     }]
                 },
                 options: {
+                    indexAxis: 'y',
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
-                        legend: {
-                            position: 'right',
-                            labels: { color: '#475569', font: { family: 'Prompt', size: 11 }, boxWidth: 12, padding: 10 }
-                        },
+                        legend: { display: false },
                         tooltip: {
                             callbacks: {
                                 label: function(context) {
                                     const key = tierKeys[context.dataIndex];
                                     const items = filteredDataset.filter(d => d.tierKey === key);
                                     const sumAmt = items.reduce((acc, i) => acc + i.amount, 0);
-                                    return ` ${context.label}: ${context.raw} เบอร์ (฿${sumAmt.toLocaleString()})`;
+                                    return ` จำนวน: ${context.raw} เบอร์ (ยอดรวม Pre-VAT ฿${sumAmt.toLocaleString('th-TH', {minimumFractionDigits: 2})})`;
                                 }
                             }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: { color: '#64748b', font: { family: 'Prompt', size: 10 } },
+                            grid: { color: '#f1f5f9' },
+                            title: { display: true, text: 'จำนวนเบอร์โทรศัพท์', color: '#94a3b8', font: { family: 'Prompt', size: 10 } }
+                        },
+                        y: {
+                            ticks: { color: '#475569', font: { family: 'Prompt', size: 11, weight: '500' } },
+                            grid: { display: false }
                         }
                     },
                     onClick: (e, elements) => {
