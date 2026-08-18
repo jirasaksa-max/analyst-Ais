@@ -31,14 +31,11 @@
         .ais-green-text { color: #86C140; }
         .bg-ais-green { background-color: #86C140; }
         
-        /* Custom Scrollbar for better UI */
+        /* Custom Scrollbar */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-        
-        .hide-scroll::-webkit-scrollbar { display: none; }
-        .hide-scroll { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
 <body class="h-full flex flex-col">
@@ -81,8 +78,8 @@
                 <div class="flex">
                     <div class="flex-shrink-0"><i class="fa-solid fa-triangle-exclamation text-orange-500 mt-0.5"></i></div>
                     <div class="ml-3">
-                        <h3 class="text-sm font-bold text-orange-800">เชื่อมต่อ Google Sheet ไม่สำเร็จ หรือ ไม่มีข้อมูล</h3>
-                        <p class="text-xs text-orange-700 mt-1">โปรดตรวจสอบว่าไฟล์ Google Sheet เปิดสิทธิ์เป็น <strong>"ทุกคนที่มีลิงก์ (Anyone with the link)"</strong> แล้ว หรือใช้ปุ่ม <strong>"อัปโหลด Tack เบอร์ AIS.xlsx"</strong> มุมขวาบนเพื่อนำเข้าข้อมูลด้วยตนเอง</p>
+                        <h3 class="text-sm font-bold text-orange-800" id="errorTitle">เชื่อมต่อ Google Sheet ไม่สำเร็จ หรือ ไม่มีข้อมูล</h3>
+                        <p class="text-xs text-orange-700 mt-1" id="errorDesc">โปรดตรวจสอบว่าไฟล์ Google Sheet เปิดสิทธิ์เป็น "ทุกคนที่มีลิงก์ (Anyone with the link)" แล้ว หรือใช้ปุ่ม "อัปโหลด Tack เบอร์ AIS.xlsx" มุมขวาบนเพื่อนำเข้าข้อมูลด้วยตนเอง</p>
                     </div>
                 </div>
             </div>
@@ -94,17 +91,17 @@
                         <i class="fa-solid fa-calculator bg-white/20 p-2 rounded-lg"></i>
                         หมายเหตุการคำนวณยอดสุทธิ
                     </h3>
-                    <p class="text-emerald-50 text-sm">การคำนวณหักค่าเครื่อง (อ้างอิงข้อมูลเดือน Jun / 197 เครื่อง)</p>
+                    <p class="text-emerald-50 text-sm">การคำนวณหักค่าเครื่อง (อ้างอิงข้อมูลเดือน Jun 26,172 บาท / 197 เครื่อง)</p>
                 </div>
                 
                 <div class="flex items-center gap-2 sm:gap-4 bg-white/10 p-3 sm:px-5 sm:py-3 rounded-xl border border-white/20 backdrop-blur-md">
                     <div class="text-center">
-                        <div class="text-[10px] sm:text-[11px] text-emerald-100 uppercase tracking-wide font-medium mb-1">ค่าเฉลี่ย/เครื่อง</div>
+                        <div class="text-[10px] sm:text-[11px] text-emerald-100 uppercase tracking-wide font-medium mb-1">ค่าใช้จ่ายเฉลี่ย/เครื่อง</div>
                         <div class="font-mono text-base sm:text-lg font-bold">฿476.76</div>
                     </div>
                     <div class="text-xl sm:text-2xl text-emerald-200 font-light">-</div>
                     <div class="text-center">
-                        <div class="text-[10px] sm:text-[11px] text-emerald-100 uppercase tracking-wide font-medium mb-1">หักค่างวด (6,990/36ด.)</div>
+                        <div class="text-[10px] sm:text-[11px] text-emerald-100 uppercase tracking-wide font-medium mb-1">หักค่างวด (6,990 บาท/36 เดือน)</div>
                         <div class="font-mono text-base sm:text-lg font-bold">฿194.17</div>
                     </div>
                     <div class="text-xl sm:text-2xl text-emerald-200 font-light">=</div>
@@ -139,14 +136,13 @@
                     <select id="deptFilterSelect" class="bg-white border border-slate-300 text-slate-700 text-sm rounded-xl px-4 py-2 shadow-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 cursor-pointer w-full sm:w-auto">
                         <option value="ALL">-- ทุกหน่วยงาน --</option>
                     </select>
-                    <!-- Hidden input to store Tier Filter State globally -->
                     <input type="hidden" id="tierFilterSelect" value="ALL">
                 </div>
             </div>
 
             <!-- Active Filters Indicator -->
             <div id="activeFilterTagsBar" class="hidden mb-6 flex items-center gap-2 flex-wrap bg-emerald-50/50 p-3 rounded-xl border border-emerald-100">
-                <span class="text-xs font-semibold text-slate-500"><i class="fa-solid fa-filter mr-1"></i> ตัวกรองที่ใช้งานอยู่:</span>
+                <span class="text-xs font-semibold text-slate-500"><i class="fa-solid fa-filter mr-1"></i> ตัวกรอง:</span>
                 <div id="activeFilterTags" class="flex flex-wrap gap-2"></div>
                 <button onclick="resetFilters()" class="text-xs text-emerald-600 hover:text-emerald-800 font-semibold ml-2 underline decoration-emerald-300 underline-offset-2">ล้างทั้งหมด</button>
             </div>
@@ -154,30 +150,20 @@
             <!-- ============================== TAB 1: OVERVIEW ============================== -->
             <div id="tabContent-overview" class="block">
                 
-                <!-- Executive Metrics Row -->
-                <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
+                <!-- Executive Metrics Row (No VAT) -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                     <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm flex flex-col justify-center">
                         <div class="text-slate-500 text-xs font-bold uppercase mb-1">จำนวนเบอร์ทั้งหมด</div>
                         <div class="text-2xl font-extrabold text-slate-900" id="statTotalCount">0</div>
                         <div class="text-[10px] text-emerald-600 font-semibold mt-1 bg-emerald-50 w-max px-2 py-0.5 rounded" id="statActiveCount">0 ใช้งาน</div>
                     </div>
                     <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm flex flex-col justify-center">
-                        <div class="text-slate-500 text-xs font-bold uppercase mb-1">ยอดรวม (Pre-VAT)</div>
+                        <div class="text-slate-500 text-xs font-bold uppercase mb-1">ยอดรวมทั้งหมด (บาท)</div>
                         <div class="text-2xl font-extrabold text-emerald-600" id="statPreVatTotal">฿0.00</div>
-                        <div class="text-[10px] text-slate-400 mt-1">ยอดก่อนภาษีมูลค่าเพิ่ม</div>
+                        <div class="text-[10px] text-slate-400 mt-1">ยอดเงินรวมตามตัวกรอง</div>
                     </div>
                     <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm flex flex-col justify-center">
-                        <div class="text-slate-500 text-xs font-bold uppercase mb-1">VAT (7%)</div>
-                        <div class="text-2xl font-extrabold text-slate-700" id="statVatTotal">฿0.00</div>
-                        <div class="text-[10px] text-slate-400 mt-1">ภาษีมูลค่าเพิ่ม</div>
-                    </div>
-                    <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm flex flex-col justify-center">
-                        <div class="text-slate-500 text-xs font-bold uppercase mb-1">ยอดสุทธิ (Post-VAT)</div>
-                        <div class="text-2xl font-extrabold text-slate-900" id="statGrandTotal">฿0.00</div>
-                        <div class="text-[10px] text-slate-400 mt-1">รวมภาษีมูลค่าเพิ่มแล้ว</div>
-                    </div>
-                    <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm flex flex-col justify-center">
-                        <div class="text-slate-500 text-xs font-bold uppercase mb-1">ค่าเฉลี่ยต่อเบอร์ (Pre-VAT)</div>
+                        <div class="text-slate-500 text-xs font-bold uppercase mb-1">ค่าเฉลี่ยต่อเบอร์ (บาท)</div>
                         <div class="text-2xl font-extrabold text-amber-500" id="statAvgPreVat">฿0.00</div>
                         <div class="text-[10px] text-slate-400 mt-1">จากเบอร์ทั้งหมดในเงื่อนไข</div>
                     </div>
@@ -191,7 +177,7 @@
                 <!-- 7 Tier Cards Row -->
                 <div class="mb-6">
                     <h2 class="text-base font-bold text-slate-800 mb-3 flex items-center gap-2">
-                        <i class="fa-solid fa-layer-group text-emerald-500"></i> จำแนกตามระดับราคาค่าบริการก่อนภาษี (Pre-VAT Tiers)
+                        <i class="fa-solid fa-layer-group text-emerald-500"></i> จำแนกตามระดับราคาค่าบริการ (7 Tiers)
                         <span class="text-xs font-normal text-slate-500 bg-slate-200 px-2 py-0.5 rounded-full ml-2">คลิกที่การ์ดเพื่อกรองข้อมูล</span>
                     </h2>
                     <div class="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-3" id="tierCardsContainer">
@@ -205,7 +191,6 @@
                     <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
                         <h3 class="text-sm font-bold text-slate-800 mb-4 flex items-center justify-between">
                             <span><i class="fa-solid fa-chart-bar text-slate-400 mr-2"></i> สัดส่วนเบอร์ตามระดับค่าบริการ (7 Tiers)</span>
-                            <span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-1 rounded">Pre-VAT</span>
                         </h3>
                         <div class="h-64 w-full relative">
                             <canvas id="tierBarChart"></canvas>
@@ -214,7 +199,7 @@
                     <!-- Department Bar Chart -->
                     <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
                         <h3 class="text-sm font-bold text-slate-800 mb-4 flex items-center justify-between">
-                            <span><i class="fa-solid fa-building text-slate-400 mr-2"></i> ค่าบริการก่อน VAT รวมแยกตามหน่วยงาน</span>
+                            <span><i class="fa-solid fa-building text-slate-400 mr-2"></i> ค่าบริการรวมแยกตามหน่วยงาน</span>
                             <span class="text-[10px] bg-emerald-50 text-emerald-700 font-semibold px-2 py-1 rounded border border-emerald-100" id="deptCountLabel">0 หน่วยงาน</span>
                         </h3>
                         <div class="h-64 w-full relative">
@@ -238,9 +223,7 @@
                                     <th class="py-3 px-4">เบอร์โทรศัพท์</th>
                                     <th class="py-3 px-4">ชื่อ-นามสกุล</th>
                                     <th class="py-3 px-4">หน่วยงาน</th>
-                                    <th class="py-3 px-4 text-right text-emerald-700">ยอดก่อน VAT</th>
-                                    <th class="py-3 px-4 text-right">VAT 7%</th>
-                                    <th class="py-3 px-4 text-right text-slate-800">ยอดรวมทั้งสิ้น</th>
+                                    <th class="py-3 px-4 text-right text-emerald-700">ยอดค่าใช้บริการ</th>
                                     <th class="py-3 px-4 text-center">ระดับค่าบริการ</th>
                                 </tr>
                             </thead>
@@ -263,7 +246,7 @@
                     <div class="bg-white rounded-2xl p-5 border-l-4 border-emerald-500 shadow-sm relative overflow-hidden group">
                         <div class="absolute top-0 right-0 -mt-4 -mr-4 w-24 h-24 bg-emerald-50 rounded-full opacity-50 group-hover:scale-110 transition-transform"></div>
                         <h3 class="text-sm font-bold text-slate-600 mb-2 relative z-10 flex items-center gap-2">
-                            <div class="w-2 h-2 rounded-full bg-emerald-500"></div> กลุ่ม MVPN เครือข่าย AIS
+                            <div class="w-2 h-2 rounded-full bg-emerald-500"></div> นอกกลุ่ม MVPN เครือข่าย AIS
                         </h3>
                         <div class="text-3xl font-extrabold text-emerald-600 mb-3 relative z-10" id="mvpnAisTotal">฿0.00</div>
                         <div class="grid grid-cols-2 gap-2 mt-4 pt-3 border-t border-slate-100 relative z-10">
@@ -282,7 +265,7 @@
                     <div class="bg-white rounded-2xl p-5 border-l-4 border-sky-500 shadow-sm relative overflow-hidden group">
                         <div class="absolute top-0 right-0 -mt-4 -mr-4 w-24 h-24 bg-sky-50 rounded-full opacity-50 group-hover:scale-110 transition-transform"></div>
                         <h3 class="text-sm font-bold text-slate-600 mb-2 relative z-10 flex items-center gap-2">
-                            <div class="w-2 h-2 rounded-full bg-sky-500"></div> กลุ่ม MVPN นอกเครือข่าย AIS
+                            <div class="w-2 h-2 rounded-full bg-sky-500"></div> นอกกลุ่ม MVPN นอกเครือข่าย AIS
                         </h3>
                         <div class="text-3xl font-extrabold text-sky-600 mb-3 relative z-10" id="mvpnOtherTotal">฿0.00</div>
                         <div class="grid grid-cols-2 gap-2 mt-4 pt-3 border-t border-slate-100 relative z-10">
@@ -339,12 +322,12 @@
                     </div>
                 </div>
 
-                <!-- MVPN Dual Tables -->
+                <!-- MVPN Dual Tables (Side-by-Side) -->
                 <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6">
-                    <!-- Left Table: MVPN AIS -->
+                    <!-- Left Table: MVPN AIS (Sort by Highest Spend) -->
                     <div class="bg-white rounded-2xl border border-emerald-200 shadow-sm overflow-hidden flex flex-col h-full">
                         <div class="px-4 py-3 bg-emerald-50 border-b border-emerald-100 flex justify-between items-center">
-                            <h3 class="text-sm font-bold text-emerald-800"><i class="fa-solid fa-signal mr-2"></i> กลุ่ม MVPN เครือข่าย AIS</h3>
+                            <h3 class="text-sm font-bold text-emerald-800"><i class="fa-solid fa-signal mr-2"></i> เบอร์ที่มีค่าใช้จ่าย MVPN AIS (เรียงจากมาก)</h3>
                             <div class="text-[10px] font-semibold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded" id="mvpnAisRecordCount">แสดง 0 รายการ</div>
                         </div>
                         <div class="overflow-x-auto flex-1">
@@ -352,7 +335,6 @@
                                 <thead class="bg-slate-50 text-slate-500 font-bold border-b border-slate-200">
                                     <tr>
                                         <th class="py-2.5 px-3">ลำดับ</th>
-                                        <th class="py-2.5 px-3">เดือน</th>
                                         <th class="py-2.5 px-3">เบอร์โทรศัพท์</th>
                                         <th class="py-2.5 px-3">ชื่อ-นามสกุล</th>
                                         <th class="py-2.5 px-3">หน่วยงาน</th>
@@ -367,10 +349,10 @@
                         <div class="px-4 py-2 border-t border-slate-100 bg-white flex justify-center gap-1" id="mvpnAisPaginationControls"></div>
                     </div>
 
-                    <!-- Right Table: MVPN Other -->
+                    <!-- Right Table: MVPN Other (Sort by Highest Spend) -->
                     <div class="bg-white rounded-2xl border border-sky-200 shadow-sm overflow-hidden flex flex-col h-full">
                         <div class="px-4 py-3 bg-sky-50 border-b border-sky-100 flex justify-between items-center">
-                            <h3 class="text-sm font-bold text-sky-800"><i class="fa-solid fa-wifi mr-2"></i> กลุ่ม MVPN นอกเครือข่าย AIS</h3>
+                            <h3 class="text-sm font-bold text-sky-800"><i class="fa-solid fa-wifi mr-2"></i> เบอร์ที่มีค่าใช้จ่าย MVPN นอกเครือข่าย (เรียงจากมาก)</h3>
                             <div class="text-[10px] font-semibold text-sky-600 bg-sky-100 px-2 py-0.5 rounded" id="mvpnOtherRecordCount">แสดง 0 รายการ</div>
                         </div>
                         <div class="overflow-x-auto flex-1">
@@ -378,11 +360,10 @@
                                 <thead class="bg-slate-50 text-slate-500 font-bold border-b border-slate-200">
                                     <tr>
                                         <th class="py-2.5 px-3">ลำดับ</th>
-                                        <th class="py-2.5 px-3">เดือน</th>
                                         <th class="py-2.5 px-3">เบอร์โทรศัพท์</th>
                                         <th class="py-2.5 px-3">ชื่อ-นามสกุล</th>
                                         <th class="py-2.5 px-3">หน่วยงาน</th>
-                                        <th class="py-2.5 px-3 text-right text-sky-700">MVPN นอกเครือข่าย (บาท)</th>
+                                        <th class="py-2.5 px-3 text-right text-sky-700">นอกเครือข่าย (บาท)</th>
                                     </tr>
                                 </thead>
                                 <tbody id="mvpnOtherTableBody" class="divide-y divide-slate-100">
@@ -418,7 +399,7 @@
                             <th class="py-3 px-6">เบอร์โทรศัพท์</th>
                             <th class="py-3 px-6">ชื่อ-นามสกุล</th>
                             <th class="py-3 px-6">หน่วยงาน</th>
-                            <th class="py-3 px-6 text-right">ยอดก่อน VAT</th>
+                            <th class="py-3 px-6 text-right">ยอดเงิน (บาท)</th>
                         </tr>
                     </thead>
                     <tbody id="modalTableBody" class="divide-y divide-slate-100">
@@ -438,7 +419,7 @@
     <script>
         // Google Sheet Configuration
         const SHEET_ID = '12ATUEH9tkgrKU4I47nW4UPhU9rEujCpD5lVNhmJCnBQ';
-        const SHEET_GID = '739602386'; // Correct GID from screenshot
+        const SHEET_GID = '739602386';
 
         // Tier Configuration (7 Tiers)
         const TIER_CONFIG = {
@@ -467,7 +448,6 @@
         let mvpnDoughnutChartInstance = null;
         let mvpnDeptBarChartInstance = null;
 
-        // Initialize App
         window.onload = function () {
             if (typeof ChartDataLabels !== 'undefined') {
                 Chart.register(ChartDataLabels);
@@ -476,6 +456,7 @@
             fetchGoogleSheetData();
         };
 
+        // GViz Fetching: The ONLY reliable way to fetch public sheets cross-origin on the client-side.
         async function fetchGoogleSheetData() {
             const syncDot = document.getElementById('syncDot');
             const syncText = document.getElementById('syncText');
@@ -483,46 +464,45 @@
             const errorBanner = document.getElementById('errorMessageBanner');
             
             refreshIcon.classList.add('fa-spin');
-            syncText.innerText = `กำลังเชื่อมต่อ Google Sheet...`;
+            syncText.innerText = `กำลังเชื่อมต่อ Google Sheet (GViz API)...`;
             syncDot.className = "w-2 h-2 rounded-full bg-amber-500 animate-pulse";
             errorBanner.classList.add('hidden');
 
             try {
-                // Fetch directly as XLSX export - This is the most reliable method for public sheets!
-                const exportUrl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=xlsx&gid=${SHEET_GID}`;
-                const response = await fetch(exportUrl);
+                // GViz endpoint bypassing CORS
+                const gvizUrl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&headers=1&gid=${SHEET_GID}`;
+                const response = await fetch(gvizUrl);
                 
-                if (!response.ok) {
-                    throw new Error(`HTTP Error: ${response.status}`);
-                }
+                if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
                 
-                const arrayBuffer = await response.arrayBuffer();
-                const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+                const text = await response.text();
+                // Strip out the google visualization wrapper
+                const match = text.match(/google\.visualization\.Query\.setResponse\(([\s\S\w]+)\);/);
                 
-                // Get the first sheet (which is our specific GID)
-                const sheetName = workbook.SheetNames[0];
-                const worksheet = workbook.Sheets[sheetName];
-                const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+                if (!match || !match[1]) throw new Error('Invalid JSON structure from GViz API');
+                
+                const jsonData = JSON.parse(match[1]);
+                
+                if (!jsonData.table || !jsonData.table.rows) throw new Error('No Data in table');
 
-                if (!jsonData || jsonData.length === 0) {
-                    throw new Error('No data found in sheet');
-                }
-
-                // Parse the data directly
-                rawDataset = parseSheetJSData(jsonData);
+                rawDataset = parseGVizData(jsonData);
                 
+                if (rawDataset.length === 0) throw new Error('Data parsed but zero valid records found');
+
                 syncText.innerText = `อัปเดตล่าสุด: ${new Date().toLocaleTimeString('th-TH')} (${rawDataset.length} รายการ)`;
                 syncDot.className = "w-2 h-2 rounded-full bg-emerald-500";
                 
                 processDataset();
 
             } catch (error) {
-                console.error('Google Sheet Sync Error:', error);
+                console.error('GViz Fetch Error:', error);
                 syncText.innerText = "เชื่อมต่อล้มเหลว โปรดตรวจสอบสิทธิ์ชีต";
                 syncDot.className = "w-2 h-2 rounded-full bg-red-500";
+                
+                document.getElementById('errorTitle').innerText = 'เชื่อมต่อ Google Sheet ไม่สำเร็จ';
+                document.getElementById('errorDesc').innerText = error.message.includes('GViz') ? 'รูปแบบข้อมูลไม่ถูกต้อง กรุณาตรวจสอบลิงก์' : 'โปรดตรวจสอบสิทธิ์ "ทุกคนที่มีลิงก์" หรือใช้ปุ่มอัปโหลดมุมบนขวา';
                 errorBanner.classList.remove('hidden');
                 
-                // Clear dataset on failure
                 rawDataset = [];
                 processDataset();
             } finally {
@@ -530,46 +510,66 @@
             }
         }
 
-        function parseSheetJSData(jsonData) {
+        function parseGVizData(data) {
             const parsed = [];
-            jsonData.forEach(row => {
-                const keys = Object.keys(row);
-                
-                // Identify columns based on header keywords
-                const phoneKey = keys.find(k => /เบอร์/i.test(k)) || keys[0];
-                const nameKey = keys.find(k => /ชื่อ/i.test(k)) || keys[1];
-                const deptKey = keys.find(k => /หน่วยงาน/i.test(k)) || keys[2];
-                const amountKey = keys.find(k => /รวมค่าใช้บริการก่อน/i.test(k) || /ยอด/i.test(k)) || keys[3];
-                const mvpnAisKey = keys.find(k => /MVPN เครือข่าย AIS/i.test(k)) || keys[4];
-                const mvpnOtherKey = keys.find(k => /MVPN นอกเครือข่าย AIS/i.test(k)) || keys[5];
-                const monthKey = keys.find(k => /เดือน/i.test(k)) || keys[6];
+            const cols = data.table.cols;
+            const rows = data.table.rows;
 
-                const rawAmt = row[amountKey];
+            // Mapping typical layout if labels aren't found
+            let phoneIdx = 0, nameIdx = 1, deptIdx = 2, amtIdx = 3, aisIdx = 4, otherIdx = 5, monthIdx = 6;
+
+            if (cols && cols.length > 0) {
+                cols.forEach((col, i) => {
+                    if (col && col.label) {
+                        const lbl = col.label.toLowerCase();
+                        if (lbl.includes('เบอร์')) phoneIdx = i;
+                        else if (lbl.includes('ชื่อ')) nameIdx = i;
+                        else if (lbl.includes('หน่วยงาน')) deptIdx = i;
+                        else if (lbl.includes('รวมค่าใช้บริการ')) amtIdx = i;
+                        else if (lbl.includes('เครือข่าย ais') && !lbl.includes('นอก')) aisIdx = i;
+                        else if (lbl.includes('นอกเครือข่าย')) otherIdx = i;
+                        else if (lbl.includes('เดือน')) monthIdx = i;
+                    }
+                });
+            }
+
+            rows.forEach(row => {
+                const c = row.c;
+                if (!c) return;
+
+                const getVal = (idx) => c[idx] ? (c[idx].v !== null && c[idx].v !== undefined ? c[idx].v : (c[idx].f || '')) : '';
+                
+                const phoneStr = String(getVal(phoneIdx)).trim();
+                const nameStr = String(getVal(nameIdx)).trim();
+                
+                // Skip header rows mixed into data
+                if (phoneStr.includes('เบอร์โทร') || nameStr.includes('ชื่อผู้ใช้งาน')) return;
+
+                const rawAmt = getVal(amtIdx);
+                const rawAis = getVal(aisIdx);
+                const rawOther = getVal(otherIdx);
+
                 let cleanAmt = (typeof rawAmt === 'number') ? rawAmt : parseFloat(String(rawAmt).replace(/,/g, '').replace(/฿/g, '')) || 0;
-                
-                let aisAmt = typeof row[mvpnAisKey] === 'number' ? row[mvpnAisKey] : parseFloat(String(row[mvpnAisKey]).replace(/,/g, '').replace(/฿/g, '')) || 0;
-                let otherAmt = typeof row[mvpnOtherKey] === 'number' ? row[mvpnOtherKey] : parseFloat(String(row[mvpnOtherKey]).replace(/,/g, '').replace(/฿/g, '')) || 0;
+                let aisAmt = (typeof rawAis === 'number') ? rawAis : parseFloat(String(rawAis).replace(/,/g, '').replace(/฿/g, '')) || 0;
+                let otherAmt = (typeof rawOther === 'number') ? rawOther : parseFloat(String(rawOther).replace(/,/g, '').replace(/฿/g, '')) || 0;
 
-                const phoneStr = String(row[phoneKey] || '').trim();
-
-                // Only include rows with phone numbers or amounts
-                if (phoneStr !== '' || cleanAmt > 0) {
+                if ((phoneStr && phoneStr.length >= 8) || cleanAmt > 0) {
                     parsed.push({
                         phone: phoneStr || '-',
-                        name: String(row[nameKey] || 'ไม่ระบุชื่อ').trim(),
-                        dept: String(row[deptKey] || 'ไม่ระบุหน่วยงาน').trim(),
+                        name: nameStr || 'ไม่ระบุชื่อ',
+                        dept: String(getVal(deptIdx)).trim() || 'ไม่ระบุหน่วยงาน',
                         amount: cleanAmt,
                         mvpnAis: aisAmt,
                         mvpnOther: otherAmt,
-                        month: String(row[monthKey] || 'ปัจจุบัน').trim()
+                        month: String(getVal(monthIdx)).trim() || 'ปัจจุบัน'
                     });
                 }
             });
+
             return parsed;
         }
 
         function processDataset() {
-            // Pre-calculate derived values
             rawDataset.forEach(item => {
                 const amt = item.amount || 0;
                 let tierKey = '0';
@@ -582,8 +582,6 @@
                 else tierKey = '0';
 
                 item.tierKey = tierKey;
-                item.vat = Math.round(amt * 0.07 * 100) / 100;
-                item.total = Math.round((amt + item.vat) * 100) / 100;
                 item.mvpnTotal = (item.mvpnAis || 0) + (item.mvpnOther || 0);
             });
 
@@ -591,7 +589,6 @@
             applyFilters();
         }
 
-        // Chronological Month Sorting (Jan to Jun)
         function getMonthChronologicalIndex(mStr) {
             if (!mStr) return 999;
             const clean = String(mStr).trim().toLowerCase();
@@ -610,18 +607,15 @@
                 ['dec', 'ธ.ค.', 'ธันวาคม', '12']
             ];
             for (let i = 0; i < monthMap.length; i++) {
-                if (monthMap[i].some(k => clean.includes(k))) {
-                    return i;
-                }
+                if (monthMap[i].some(k => clean.includes(k))) return i;
             }
-            return 99; // Unknown month goes to end
+            return 99; 
         }
 
         function populateDropdownFilters() {
             const monthSelect = document.getElementById('monthFilterSelect');
             const deptSelect = document.getElementById('deptFilterSelect');
 
-            // Sort months chronologically
             const months = [...new Set(rawDataset.map(d => d.month).filter(Boolean))].sort((a, b) => {
                 const idxA = getMonthChronologicalIndex(a);
                 const idxB = getMonthChronologicalIndex(b);
@@ -674,7 +668,6 @@
                 return matchesSearch && matchesMonth && matchesDept && matchesTier;
             });
 
-            // Reset pagination
             overviewPage = 1;
             mvpnAisPage = 1;
             mvpnOtherPage = 1;
@@ -685,15 +678,11 @@
 
         function switchTab(tabId) {
             currentTab = tabId;
-            
-            // Toggle visibility
             document.getElementById('tabContent-overview').classList.toggle('hidden', tabId !== 'overview');
             document.getElementById('tabContent-overview').classList.toggle('block', tabId === 'overview');
-            
             document.getElementById('tabContent-mvpn').classList.toggle('hidden', tabId !== 'mvpn');
             document.getElementById('tabContent-mvpn').classList.toggle('block', tabId === 'mvpn');
 
-            // Style buttons
             const btnOverview = document.getElementById('tabBtn-overview');
             const btnMvpn = document.getElementById('tabBtn-mvpn');
 
@@ -703,14 +692,12 @@
             } else {
                 btnMvpn.className = 'tab-btn px-5 py-2 rounded-lg text-sm font-bold bg-sky-50 text-sky-700 shadow-sm transition';
                 btnOverview.className = 'tab-btn px-5 py-2 rounded-lg text-sm font-semibold text-slate-500 hover:text-slate-800 hover:bg-slate-50 transition';
-                // Remove tier filter when in MVPN tab
                 if (document.getElementById('tierFilterSelect').value !== 'ALL') {
                     document.getElementById('tierFilterSelect').value = 'ALL';
                     applyFilters();
-                    return; // applyFilters will call renderAll
+                    return; 
                 }
             }
-            
             renderAll();
         }
 
@@ -788,16 +775,12 @@
             const totalCount = filteredDataset.length;
             const activeCount = filteredDataset.filter(d => d.amount > 0).length;
             const preVatTotal = filteredDataset.reduce((sum, d) => sum + d.amount, 0);
-            const vatTotal = preVatTotal * 0.07;
-            const grandTotal = preVatTotal + vatTotal;
             const avgPreVat = totalCount > 0 ? (preVatTotal / totalCount) : 0;
 
             document.getElementById('statTotalCount').innerText = totalCount.toLocaleString();
             document.getElementById('statActiveCount').innerText = `${activeCount.toLocaleString()} เบอร์ใช้งาน (${((activeCount/totalCount)*100||0).toFixed(0)}%)`;
             document.getElementById('statPreVatTotal').innerText = `฿${preVatTotal.toLocaleString('th-TH', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
             document.getElementById('statAvgPreVat').innerText = `฿${avgPreVat.toLocaleString('th-TH', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-            document.getElementById('statVatTotal').innerText = `฿${vatTotal.toLocaleString('th-TH', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-            document.getElementById('statGrandTotal').innerText = `฿${grandTotal.toLocaleString('th-TH', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
 
             const deptTotals = {};
             filteredDataset.forEach(d => {
@@ -871,12 +854,12 @@
             const tierLabels = tierKeys.map(k => TIER_CONFIG[k].label);
             const tierColors = tierKeys.map(k => TIER_CONFIG[k].color);
 
-            // Chart 1: Horizontal Bar Chart for Tiers
+            // Horizontal Bar Chart for Tiers
             const ctxBarTier = document.getElementById('tierBarChart').getContext('2d');
             if (tierBarChartInstance) tierBarChartInstance.destroy();
 
             tierBarChartInstance = new Chart(ctxBarTier, {
-                type: 'bar', // Changed from doughnut to horizontal bar
+                type: 'bar',
                 data: {
                     labels: tierLabels,
                     datasets: [{
@@ -887,10 +870,10 @@
                     }]
                 },
                 options: {
-                    indexAxis: 'y', // Horizontal
+                    indexAxis: 'y',
                     responsive: true,
                     maintainAspectRatio: false,
-                    layout: { padding: { right: 40 } }, // Space for labels
+                    layout: { padding: { right: 50 } },
                     plugins: {
                         legend: { display: false },
                         datalabels: {
@@ -906,7 +889,7 @@
                                     const key = tierKeys[context.dataIndex];
                                     const items = filteredDataset.filter(d => d.tierKey === key);
                                     const sumAmt = items.reduce((acc, i) => acc + i.amount, 0);
-                                    return ` ${context.raw} เบอร์ (ยอด Pre-VAT ฿${sumAmt.toLocaleString('th-TH', {minimumFractionDigits: 2})})`;
+                                    return ` ${context.raw} เบอร์ (฿${sumAmt.toLocaleString('th-TH', {minimumFractionDigits: 2})})`;
                                 }
                             }
                         }
@@ -917,15 +900,14 @@
                     },
                     onClick: (e, elements) => {
                         if (elements.length > 0) {
-                            const index = elements[0].index;
-                            document.getElementById('tierFilterSelect').value = tierKeys[index];
+                            document.getElementById('tierFilterSelect').value = tierKeys[elements[0].index];
                             applyFilters();
                         }
                     }
                 }
             });
 
-            // Chart 2: Department Bar Chart
+            // Dept Bar Chart
             const deptTotals = {};
             filteredDataset.forEach(d => {
                 const dept = d.dept || 'ไม่ระบุ';
@@ -945,9 +927,9 @@
                 data: {
                     labels: sortedDepts,
                     datasets: [{
-                        label: 'ยอด Pre-VAT (บาท)',
+                        label: 'ยอดเงิน (บาท)',
                         data: deptAmounts,
-                        backgroundColor: '#86C140', // AIS Green
+                        backgroundColor: '#86C140',
                         borderRadius: 4
                     }]
                 },
@@ -994,7 +976,7 @@
             const pageData = filteredDataset.slice(startIdx, endIdx);
 
             if (pageData.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="9" class="text-center py-8 text-slate-400">ไม่มีข้อมูลตามเงื่อนไขที่ระบุ</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-slate-400">ไม่มีข้อมูลตามเงื่อนไขที่ระบุ</td></tr>`;
             } else {
                 pageData.forEach((item, index) => {
                     const cfg = TIER_CONFIG[item.tierKey] || TIER_CONFIG['0'];
@@ -1007,8 +989,6 @@
                         <td class="py-3 px-4 text-slate-800">${item.name}</td>
                         <td class="py-3 px-4 text-slate-600">${item.dept}</td>
                         <td class="py-3 px-4 text-right text-emerald-700 font-mono font-bold">฿${item.amount.toLocaleString('th-TH', {minimumFractionDigits: 2})}</td>
-                        <td class="py-3 px-4 text-right text-slate-500 font-mono">฿${item.vat.toLocaleString('th-TH', {minimumFractionDigits: 2})}</td>
-                        <td class="py-3 px-4 text-right text-slate-900 font-mono font-bold">฿${item.total.toLocaleString('th-TH', {minimumFractionDigits: 2})}</td>
                         <td class="py-3 px-4 text-center"><span class="${cfg.class} px-2 py-1 rounded text-[11px] font-bold">${cfg.label}</span></td>
                     `;
                     tbody.appendChild(row);
@@ -1046,7 +1026,6 @@
 
             document.getElementById('mvpnCombinedTotal').innerText = `฿${grandTotal.toLocaleString('th-TH', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
 
-            // Winner Logic
             const absDiff = Math.abs(aisTotal - otherTotal);
             const minVal = Math.min(aisTotal, otherTotal);
             const pctDiff = minVal > 0 ? ((absDiff / minVal) * 100).toFixed(1) : (grandTotal > 0 ? 100 : 0);
@@ -1073,7 +1052,6 @@
                 diffPctEl.innerText = `0.00%`;
             }
 
-            // Top Dept for MVPN
             const mvpnDeptTotals = {};
             filteredDataset.forEach(d => {
                 const dept = d.dept || 'ไม่ระบุ';
@@ -1096,7 +1074,6 @@
             const aisTotal = filteredDataset.reduce((sum, d) => sum + (d.mvpnAis || 0), 0);
             const otherTotal = filteredDataset.reduce((sum, d) => sum + (d.mvpnOther || 0), 0);
 
-            // Doughnut Chart
             const ctxDoughnut = document.getElementById('mvpnDoughnutChart').getContext('2d');
             if (mvpnDoughnutChartInstance) mvpnDoughnutChartInstance.destroy();
 
@@ -1128,7 +1105,6 @@
                 }
             });
 
-            // MVPN Dept Bar Chart
             const deptMap = {};
             filteredDataset.forEach(d => {
                 const dept = d.dept || 'ไม่ระบุ';
@@ -1155,7 +1131,7 @@
                     ]
                 },
                 options: {
-                    responsive: true, maintainAspectRatio: false, layout: { padding: { top: 20 } },
+                    responsive: true, maintainAspectRatio: false, layout: { padding: { top: 25 } },
                     plugins: {
                         legend: { display: false },
                         datalabels: {
@@ -1181,10 +1157,9 @@
             const tbody = document.getElementById('mvpnAisTableBody');
             tbody.innerHTML = '';
 
-            // Filter and SORT descending by MVPN AIS amount
             const sortedData = [...filteredDataset]
                 .filter(d => (d.mvpnAis || 0) > 0)
-                .sort((a, b) => (b.mvpnAis || 0) - (a.mvpnAis || 0));
+                .sort((a, b) => (b.mvpnAis || 0) - (a.mvpnAis || 0)); // Sort Top Spend
 
             const total = sortedData.length;
             const startIdx = (mvpnAisPage - 1) * pageSize;
@@ -1192,14 +1167,13 @@
             const pageData = sortedData.slice(startIdx, endIdx);
 
             if (pageData.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" class="text-center py-6 text-slate-400">ไม่มีข้อมูลเครือข่าย AIS</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="5" class="text-center py-6 text-slate-400">ไม่มีข้อมูลเครือข่าย AIS</td></tr>`;
             } else {
                 pageData.forEach((item, index) => {
                     const row = document.createElement('tr');
                     row.className = "hover:bg-emerald-50/50";
                     row.innerHTML = `
                         <td class="py-2.5 px-3 text-xs text-slate-400 font-mono">${startIdx + index + 1}</td>
-                        <td class="py-2.5 px-3 text-slate-600 font-medium">${item.month || '-'}</td>
                         <td class="py-2.5 px-3 text-slate-900 font-mono font-semibold">${item.phone}</td>
                         <td class="py-2.5 px-3 text-slate-800 truncate max-w-[100px]">${item.name}</td>
                         <td class="py-2.5 px-3 text-slate-600 truncate max-w-[80px]">${item.dept}</td>
@@ -1217,10 +1191,9 @@
             const tbody = document.getElementById('mvpnOtherTableBody');
             tbody.innerHTML = '';
 
-            // Filter and SORT descending by MVPN Other amount
             const sortedData = [...filteredDataset]
                 .filter(d => (d.mvpnOther || 0) > 0)
-                .sort((a, b) => (b.mvpnOther || 0) - (a.mvpnOther || 0));
+                .sort((a, b) => (b.mvpnOther || 0) - (a.mvpnOther || 0)); // Sort Top Spend
 
             const total = sortedData.length;
             const startIdx = (mvpnOtherPage - 1) * pageSize;
@@ -1228,14 +1201,13 @@
             const pageData = sortedData.slice(startIdx, endIdx);
 
             if (pageData.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" class="text-center py-6 text-slate-400">ไม่มีข้อมูลนอกเครือข่าย AIS</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="5" class="text-center py-6 text-slate-400">ไม่มีข้อมูลนอกเครือข่าย AIS</td></tr>`;
             } else {
                 pageData.forEach((item, index) => {
                     const row = document.createElement('tr');
                     row.className = "hover:bg-sky-50/50";
                     row.innerHTML = `
                         <td class="py-2.5 px-3 text-xs text-slate-400 font-mono">${startIdx + index + 1}</td>
-                        <td class="py-2.5 px-3 text-slate-600 font-medium">${item.month || '-'}</td>
                         <td class="py-2.5 px-3 text-slate-900 font-mono font-semibold">${item.phone}</td>
                         <td class="py-2.5 px-3 text-slate-800 truncate max-w-[100px]">${item.name}</td>
                         <td class="py-2.5 px-3 text-slate-600 truncate max-w-[80px]">${item.dept}</td>
@@ -1311,7 +1283,7 @@
                 });
             }
 
-            document.getElementById('modalTotalSummary').innerText = `รวม ${items.length.toLocaleString()} เบอร์ | ยอดรวมก่อน VAT: ฿${totalAmt.toLocaleString('th-TH', {minimumFractionDigits: 2})}`;
+            document.getElementById('modalTotalSummary').innerText = `รวม ${items.length.toLocaleString()} เบอร์ | ยอดรวมเงิน: ฿${totalAmt.toLocaleString('th-TH', {minimumFractionDigits: 2})}`;
             
             const modal = document.getElementById('tierModal');
             modal.classList.remove('hidden');
@@ -1334,11 +1306,24 @@
                     const data = new Uint8Array(evt.target.result);
                     const workbook = XLSX.read(data, { type: 'array' });
                     const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-                    const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
 
-                    if (!jsonData || jsonData.length === 0) throw new Error('ไฟล์ว่างเปล่า');
+                    if (!jsonData || jsonData.length < 2) throw new Error('ไฟล์ว่างเปล่า หรือโครงสร้างไม่ถูกต้อง');
 
-                    rawDataset = parseSheetJSData(jsonData);
+                    // Convert raw 2D array to GViz simulated object for unified parsing
+                    const simulatedGViz = { table: { cols: [], rows: [] } };
+                    
+                    // Assume row 0 is headers
+                    jsonData[0].forEach(header => simulatedGViz.table.cols.push({ label: String(header) }));
+                    
+                    // Assume row 1 onwards is data
+                    for(let i = 1; i < jsonData.length; i++) {
+                        const rowData = jsonData[i];
+                        const cArr = rowData.map(val => ({ v: val }));
+                        simulatedGViz.table.rows.push({ c: cArr });
+                    }
+
+                    rawDataset = parseGVizData(simulatedGViz);
                     processDataset();
 
                     document.getElementById('syncText').innerText = `อัปโหลดไฟล์: ${file.name} (${rawDataset.length} รายการ)`;
@@ -1346,8 +1331,11 @@
                     document.getElementById('errorMessageBanner').classList.add('hidden');
 
                 } catch (err) {
-                    alert('เกิดข้อผิดพลาดในการอ่านไฟล์ Excel กรุณาตรวจสอบรูปแบบไฟล์');
-                    console.error(err);
+                    console.error('File Upload Error:', err);
+                    const errBanner = document.getElementById('errorMessageBanner');
+                    errBanner.classList.remove('hidden');
+                    document.getElementById('errorTitle').innerText = 'เกิดข้อผิดพลาดในการอ่านไฟล์ Excel';
+                    document.getElementById('errorDesc').innerText = 'กรุณาตรวจสอบให้แน่ใจว่าไฟล์ที่นำเข้ามีคอลัมน์ถูกต้องตามรูปแบบชีตต้นฉบับ';
                 }
             };
             reader.readAsArrayBuffer(file);
@@ -1355,20 +1343,23 @@
         }
 
         function exportSummaryCSV() {
-            if (filteredDataset.length === 0) return alert('ไม่มีข้อมูลสำหรับส่งออก');
+            if (filteredDataset.length === 0) {
+                console.warn('ไม่มีข้อมูลสำหรับส่งออก');
+                return;
+            }
             
-            let csv = "\uFEFF"; // UTF-8 BOM
+            let csv = "\uFEFF"; // UTF-8 BOM for Thai Language Support
             
             if (currentTab === 'mvpn') {
-                csv += "ลำดับ,งวด/เดือน,เบอร์โทรศัพท์,ชื่อ-นามสกุล,หน่วยงาน,MVPN AIS (บาท),MVPN นอกเครือข่าย (บาท),รวม MVPN (บาท),ยอดสุทธิทั้งหมดก่อน VAT (บาท)\n";
+                csv += "ลำดับ,งวด/เดือน,เบอร์โทรศัพท์,ชื่อ-นามสกุล,หน่วยงาน,MVPN AIS (บาท),MVPN นอกเครือข่าย (บาท),รวม MVPN (บาท),ยอดรวมทั้งหมด (บาท)\n";
                 filteredDataset.forEach((item, index) => {
                     csv += `${index + 1},"${item.month||''}","${item.phone}","${item.name}","${item.dept}",${(item.mvpnAis||0).toFixed(2)},${(item.mvpnOther||0).toFixed(2)},${(item.mvpnTotal||0).toFixed(2)},${item.amount.toFixed(2)}\n`;
                 });
             } else {
-                csv += "ลำดับ,งวด/เดือน,เบอร์โทรศัพท์,ชื่อ-นามสกุล,หน่วยงาน,ยอดก่อน VAT (บาท),VAT 7% (บาท),รวมทั้งสิ้น (บาท),ระดับราคา\n";
+                csv += "ลำดับ,งวด/เดือน,เบอร์โทรศัพท์,ชื่อ-นามสกุล,หน่วยงาน,ยอดรวมทั้งหมด (บาท),ระดับราคา\n";
                 filteredDataset.forEach((item, index) => {
                     const cfg = TIER_CONFIG[item.tierKey] || TIER_CONFIG['0'];
-                    csv += `${index + 1},"${item.month||''}","${item.phone}","${item.name}","${item.dept}",${item.amount.toFixed(2)},${item.vat.toFixed(2)},${item.total.toFixed(2)},"${cfg.label}"\n`;
+                    csv += `${index + 1},"${item.month||''}","${item.phone}","${item.name}","${item.dept}",${item.amount.toFixed(2)},"${cfg.label}"\n`;
                 });
             }
 
